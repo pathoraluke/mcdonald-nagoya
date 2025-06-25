@@ -10,13 +10,25 @@
     href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
   />
   <style>
-    html, body, #map { height:100%; margin:0; padding:0; }
+    /* ページ全体と地図コンテナを真っ白に */
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: #fff;
+    }
+    /* Leaflet 地図キャンバスも白背景に */
+    .leaflet-container {
+      background: #fff !important;
+    }
+
+    /* 3Dっぽい円柱アイコン */
     .cylinder {
       position: absolute;
-      bottom: 0;
-      left: 50%;
-      width: 8px;
-      height: 100%;
+      bottom: 0;               /* 地面にくっつける */
+      left: 50%;               /* 中央寄せ */
+      width: 8px;              /* 円柱の直径 */
+      height: 100%;            /* コンテナいっぱい */
       transform-origin: bottom center;
       transform: scaleY(0);
       transition: transform 1s ease-out;
@@ -49,6 +61,7 @@
   <script src="data.js"></script>
 
   <script>
+    // 地図初期化（白地図：タイルなし）
     const map = L.map('map', {
       center: [35.1815, 136.9066],
       zoom: 11,
@@ -66,28 +79,29 @@
         L.geoJSON(geo, {
           style: { color: '#333', weight: 2, fill: false }
         }).addTo(map);
+        // 棒グラフを描く
         drawCylinders();
       })
       .catch(err => console.error(err));
 
     function drawCylinders() {
-      data.forEach((d,i) => {
-        const h = d.count * 15;
+      data.forEach((d, i) => {
+        const h = d.count * 15; // 件数 × スケール調整
         const html = `
           <div class="cylinder" style="height:${h}px">
             <div class="body"></div>
             <div class="top"></div>
           </div>`;
         const icon = L.divIcon({
-          html,
+          html: html,
           className: '',
           iconSize: [8, h],
           iconAnchor: [4, h]
         });
-        const m = L.marker([d.lat, d.lon], { icon }).addTo(map);
+        const marker = L.marker([d.lat, d.lon], { icon }).addTo(map);
         setTimeout(() => {
-          m.getElement().querySelector('.cylinder').style.transform = 'scaleY(1)';
-        }, 200 + i*100);
+          marker.getElement().querySelector('.cylinder').style.transform = 'scaleY(1)';
+        }, 200 + i * 100);
       });
     }
   </script>
