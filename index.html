@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>3D円柱グラフ＋愛知県境界 (アニメーション付き・高さ強化)</title>
+  <title>3D円柱グラフ＋愛知県境界 (手動アニメーション)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <!-- MapLibre GL CSS -->
   <link
@@ -21,16 +21,13 @@
 <body>
   <div id="map"></div>
 
-  <!-- MapLibre GL JS -->
+  <!-- 必要なスクリプト -->
   <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
-  <!-- deck.gl & MapboxOverlay -->
   <script src="https://unpkg.com/deck.gl@8.9.4/dist.min.js"></script>
   <script src="https://unpkg.com/@deck.gl/mapbox@8.9.4/dist.min.js"></script>
-  <!-- 店舗データ -->
   <script src="data.js"></script>
 
   <script>
-    // 1) MapLibre 地図を作成
     const map = new maplibregl.Map({
       container: 'map',
       style: 'https://demotiles.maplibre.org/style.json',
@@ -42,41 +39,58 @@
     });
 
     map.on('load', () => {
-      // 2) 愛知県境界レイヤー
+      // 県境レイヤー
       const boundaryLayer = new deck.GeoJsonLayer({
         id: 'aichi-boundary',
         data: 'Aichi.geojson',
         stroked: true,
         filled: false,
         lineWidthMinPixels: 2,
-        getLineColor: [50, 50, 50, 200]
+        getLineColor: [50,50,50,200]
       });
 
-      // 3) アニメーション付き円柱グラフレイヤー
-      const cylinderLayer = new deck.ColumnLayer({
+      // 初期：高さ0の円柱レイヤー
+      let cylinderLayer = new deck.ColumnLayer({
         id: 'cylinders',
-        data: data,
+        data,
         diskResolution: 12,
         radius: 200,
         extruded: true,
         pickable: true,
         getPosition: d => [d.lon, d.lat],
-        // ここを *100 にして高さを調整
-        getElevation: d => d.count * 200,
-        getFillColor: [255, 0, 0, 200],
-        transitions: {
-          getElevation: {
-            duration: 1000,
-            easing: t => t * t * (3 - 2 * t)
-          }
-        }
+        getElevation: d => 0,            // 初期は0
+        getFillColor: [255, 0, 0, 200]
       });
 
-      // 4) MapboxOverlay を使って deck.gl を MapLibre に重ねる
+      // MapboxOverlayに追加
       const overlay = new deck.MapboxOverlay({
         layers: [boundaryLayer, cylinderLayer]
       });
       map.addControl(overlay);
+
+      // 少し待ってから高さを更新 → 自動でアニメーション
+      setTimeout(() => {
+        // 新しいレイヤーを同IDで再構築
+        cylinderLayer = new deck.ColumnLayer({
+          id: 'cylinders',
+          data,
+          diskResolution: 12,
+          radius: 200,
+          extruded: true,
+          pickable: true,
+          getPosition: d => [d.lon, d.lat],
+          getElevation: d => d.count * 1000, // 目標の高さ
+          getFillColor: [255, 0, 0, 200],
+          transitions: {
+            getElevation: { duration: 1000 }
+          }
+        });
+        // レイヤーを差し替え
+        overlay.setProps({
+          layers: [boundaryLayer, cylinderLayer]
+        });
+      }, 300);
+
     });
   </script>
 </body>
