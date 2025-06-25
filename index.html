@@ -2,72 +2,45 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>3D円柱グラフ＋愛知県境界 (deck.gl + MapLibre)</title>
+  <title>3D円柱グラフ（MapLibre GL JS）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <!-- MapLibre GL CSS -->
-  <link
-    href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css"
-    rel="stylesheet"
-  />
-  <style>
-    html, body, #map {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      background: #fff;
-    }
-  </style>
+  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+  <style>body{margin:0;}#map{width:100vw;height:100vh;}</style>
 </head>
 <body>
   <div id="map"></div>
-
-  <!-- 必要なスクリプト -->
   <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
-  <script src="https://unpkg.com/deck.gl@8.9.4/dist.min.js"></script>
-  <script src="https://unpkg.com/@deck.gl/mapbox@8.9.4/dist.min.js"></script>
   <script src="data.js"></script>
-
   <script>
-    // 1) MapLibre 地図を作成
     const map = new maplibregl.Map({
       container: 'map',
-      style: 'https://demotiles.maplibre.org/style.json',
+      style: 'https://demotiles.maplibre.org/style.json', // OSS のベースマップ
       center: [136.9066, 35.1815],
       zoom: 11,
-      pitch: 45,
-      bearing: -20,
-      attributionControl: false
+      pitch: 60,    // 傾き
+      bearing: -20, // 回転角
     });
 
     map.on('load', () => {
-      // 2) deck.gl の GeoJsonLayer で愛知県境界を描画
-      const boundaryLayer = new deck.GeoJsonLayer({
-        id: 'aichi-boundary',
-        data: 'Aichi.geojson',
-        stroked: true,
-        filled: false,
-        lineWidthMinPixels: 2,
-        getLineColor: [50, 50, 50, 200]
-      });
+      // GeoJSON としてデータを作り直します
+      const features = data.map(d => ({
+        type: 'Feature',
+        geometry: { type:'Point', coordinates:[d.lon, d.lat] },
+        properties: { height: d.count * 100 } // メートル単位
+      }));
+      map.addSource('points', { type:'geojson', data:{ type:'FeatureCollection', features } });
 
-      // 3) deck.gl の ColumnLayer で円柱グラフを描画
-      const cylinderLayer = new deck.ColumnLayer({
+      map.addLayer({
         id: 'cylinders',
-        data: data,
-        diskResolution: 12,
-        radius: 200,
-        extruded: true,
-        pickable: true,
-        getPosition: d => [d.lon, d.lat],
-        getElevation: d => d.count * 50,
-        getFillColor: [255, 0, 0, 200]
+        type: 'fill-extrusion',
+        source: 'points',
+        paint: {
+          'fill-extrusion-color': '#dd3333',
+          'fill-extrusion-height': ['get', 'height'],
+          'fill-extrusion-base': 0,
+          'fill-extrusion-opacity': 0.8
+        }
       });
-
-      // 4) MapboxOverlay を使って deck.gl レイヤーを地図に追加
-      const overlay = new deck.MapboxOverlay({
-        layers: [boundaryLayer, cylinderLayer]
-      });
-      map.addControl(overlay);
     });
   </script>
 </body>
