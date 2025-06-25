@@ -21,15 +21,14 @@
 <body>
   <div id="map"></div>
 
-  <!-- MapLibre GL JS -->
+  <!-- 必要なスクリプト -->
   <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
-  <!-- deck.gl -->
   <script src="https://unpkg.com/deck.gl@8.9.4/dist.min.js"></script>
-  <!-- あなたの店舗データ -->
+  <script src="https://unpkg.com/@deck.gl/mapbox@8.9.4/dist.min.js"></script>
   <script src="data.js"></script>
 
   <script>
-    // 1. MapLibre 地図を作成
+    // 1) MapLibre 地図を作成
     const map = new maplibregl.Map({
       container: 'map',
       style: 'https://demotiles.maplibre.org/style.json',
@@ -41,35 +40,34 @@
     });
 
     map.on('load', () => {
-      // 2. deck.gl の ColumnLayer (円柱グラフ)
-      const cylinderLayer = new deck.ColumnLayer({
-        id: 'cylinders',
-        data: data,
-        diskResolution: 12,
-        radius: 200,
-        extruded: true,
-        getPosition: d => [d.lon, d.lat],
-        getElevation: d => d.count * 50,
-        getFillColor: [255, 0, 0, 200],
-        pickable: true
-      });
-
-      // 3. deck.gl の GeoJsonLayer (愛知県境界線)
+      // 2) deck.gl の GeoJsonLayer で愛知県境界を描画
       const boundaryLayer = new deck.GeoJsonLayer({
         id: 'aichi-boundary',
         data: 'Aichi.geojson',
         stroked: true,
         filled: false,
         lineWidthMinPixels: 2,
-        getLineColor: [50, 50, 50, 200],
+        getLineColor: [50, 50, 50, 200]
       });
 
-      // 4. deck.gl と MapLibre を統合してレイヤーを追加
-      new deck.DeckGL({
-        map: map,
-        controller: true,
+      // 3) deck.gl の ColumnLayer で円柱グラフを描画
+      const cylinderLayer = new deck.ColumnLayer({
+        id: 'cylinders',
+        data: data,
+        diskResolution: 12,
+        radius: 200,
+        extruded: true,
+        pickable: true,
+        getPosition: d => [d.lon, d.lat],
+        getElevation: d => d.count * 50,
+        getFillColor: [255, 0, 0, 200]
+      });
+
+      // 4) MapboxOverlay を使って deck.gl レイヤーを地図に追加
+      const overlay = new deck.MapboxOverlay({
         layers: [boundaryLayer, cylinderLayer]
       });
+      map.addControl(overlay);
     });
   </script>
 </body>
