@@ -56,7 +56,7 @@
       // ② 県境レイヤー（線のみ）
       const boundaryLayer = new deck.GeoJsonLayer({
         id: 'aichi-boundary',
-        data: 'Aichi_prefecture.geojson',
+        data: 'Aichi.geojson',
         stroked: true,
         filled: false,
         lineWidthMinPixels: 2,
@@ -66,7 +66,7 @@
       // ③ 名古屋市区界レイヤー（薄黄色）
       const nagoyaLayer = new deck.GeoJsonLayer({
         id: 'nagoya-wards',
-        data: 'Aichi_municipalities.geojson',
+        data: 'Nagoyaward.geojson',
         filter: f => f.properties.N03_003 === '名古屋市',
         stroked: true,
         filled: true,
