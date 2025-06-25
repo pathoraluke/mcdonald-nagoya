@@ -35,10 +35,10 @@
   //   attribution: '&copy; OpenStreetMap contributors'
   // }).addTo(map);
 
-  // aichi.geojson を読み込んで境界線だけ描画
-  fetch('aichi.geojson')
+  // aichi_outline.geojson を読み込んで境界線だけ描画
+  fetch('aichi_outline.geojson')
     .then(res => {
-      if (!res.ok) throw new Error('aichi.geojson が見つかりません');
+      if (!res.ok) throw new Error('aichi_outline.geojson が見つかりません');
       return res.json();
     })
     .then(geojson => {
