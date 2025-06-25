@@ -1,76 +1,120 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>愛知県マック棒グラフ＆名古屋区上塗り</title>
+  <meta charset="UTF-8">
+  <title>3D 円柱ニョキニョキ（真っ白背景）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <!-- Leaflet CSS -->
   <link
+    href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css"
     rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
   />
   <style>
-    html, body, #map { height:100%; margin:0; padding:0; }
-    .bar { /* 前回の赤い棒グラフスタイル */ }
+    html, body, #map {
+      height:100%;
+      margin:0;
+      padding:0;
+      background:#fff;
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-  <!-- 棒グラフ用データ -->
+  <!-- MapLibre GL JS -->
+  <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+  <!-- deck.gl 本体 -->
+  <script src="https://unpkg.com/deck.gl@8.9.4/dist.min.js"></script>
+  <!-- deck.gl Mapbox アダプタ -->
+  <script src="https://unpkg.com/@deck.gl/mapbox@8.9.4/dist.min.js"></script>
+  <!-- あなたの店舗データ -->
   <script src="data.js"></script>
 
   <script>
-    const map = L.map('map', {
-      center: [35.1815, 136.9066],
+    // ① MapLibre を「まっさら白背景スタイル」で初期化
+    const map = new maplibregl.Map({
+      container: 'map',
+      // ← 空のソースと背景レイヤだけのスタイル
+      style: {
+        version: 8,
+        sources: {},
+        layers: [
+          {
+            id: 'background',
+            type: 'background',
+            paint: { 'background-color': '#ffffff' }
+          }
+        ]
+      },
+      center: [136.9066, 35.1815],
       zoom: 11,
-      zoomControl: false,
+      pitch: 50,
+      bearing: -20,
       attributionControl: false
     });
 
-    // ① 愛知県境界（線のみ）
-    fetch('Aichi.geojson')
-      .then(r=>r.json())
-      .then(geojson=>{
-        L.geoJSON(geojson, {
-          style: { color: '#333', weight: 2, fill: false }
-        }).addTo(map);
+    map.on('load', () => {
+      // ② 県境レイヤー（線のみ）
+      const boundaryLayer = new deck.GeoJsonLayer({
+        id: 'aichi-boundary',
+        data: 'Aichi_prefecture.geojson',
+        stroked: true,
+        filled: false,
+        lineWidthMinPixels: 2,
+        getLineColor: [50,50,50,200]
       });
 
-    // ② 名古屋市区界を薄い黄色で上塗り
-    fetch('Nagoyaward.geojson')
-      .then(r=>r.json())
-      .then(geojson=>{
-        L.geoJSON(geojson, {
-          style: {
-            color: '#333',            // 境界線はグレー
-            weight: 1,
-            fillColor: '#ffffb2',     // 薄い黄色
-            fillOpacity: 0.5
+      // ③ 名古屋市区界レイヤー（薄黄色）
+      const nagoyaLayer = new deck.GeoJsonLayer({
+        id: 'nagoya-wards',
+        data: 'Aichi_municipalities.geojson',
+        filter: f => f.properties.N03_003 === '名古屋市',
+        stroked: true,
+        filled: true,
+        getLineColor: [50,50,50,200],
+        getFillColor: [255,255,178,160],
+        lineWidthMinPixels: 1
+      });
+
+      // ④ 円柱レイヤー（初期高さ0）
+      let cylinderLayer = new deck.ColumnLayer({
+        id: 'cylinders',
+        data,
+        diskResolution: 12,
+        radius: 300,
+        extruded: true,
+        pickable: true,
+        getPosition: d => [d.lon, d.lat],
+        getElevation: _ => 0,
+        getFillColor: [255, 0, 0, 200]
+      });
+
+      // ⑤ deck.gl Overlay を追加
+      const overlay = new deck.MapboxOverlay({
+        layers: [ boundaryLayer, nagoyaLayer, cylinderLayer ]
+      });
+      map.addControl(overlay);
+
+      // ⑥ 少し遅延して「2倍高さ」にアニメーション
+      setTimeout(() => {
+        const animated = new deck.ColumnLayer({
+          id: 'cylinders',
+          data,
+          diskResolution: 12,
+          radius: 300,
+          extruded: true,
+          pickable: true,
+          getPosition: d => [d.lon, d.lat],
+          getElevation: d => d.count * 2000,
+          getFillColor: [255, 0, 0, 200],
+          transitions: {
+            getElevation: { duration: 1500 }
           }
-        }).addTo(map);
-      });
-
-    // ③ 赤い棒グラフを描画（前回コード）
-    function drawBars() {
-      data.forEach((d,i) => {
-        const h = d.count * 15;
-        const icon = L.divIcon({
-          className:'',
-          html:'<div class="bar" style="width:3px;height:0;background:red;transform-origin:bottom;transition:height 1s;"></div>',
-          iconSize:[3,h],
-          iconAnchor:[1,h]
         });
-        const m = L.marker([d.lat,d.lon],{icon}).addTo(map);
-        setTimeout(()=>{
-          m.getElement().querySelector('.bar').style.height = h+'px';
-        },200+i*100);
-      });
-    }
-    // wait for the map tiles & geojsons
-    setTimeout(drawBars, 500);
+        overlay.setProps({
+          layers: [ boundaryLayer, nagoyaLayer, animated ]
+        });
+      }, 300);
+    });
   </script>
 </body>
 </html>
