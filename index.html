@@ -42,4 +42,32 @@
     fetch('aichi.geojson')
       .then(r => r.json())
       .then(geojson => {
-        L.geoJS
+        L.geoJSON(geojson, {
+          style: { color: '#333', weight: 2, fill: false }
+        }).addTo(map);
+        // 3) 棒グラフを描画
+        drawBars();
+      })
+      .catch(err => console.error('aichi.geojson 読み込みエラー:', err));
+
+    function drawBars() {
+      data.forEach((d, i) => {
+        const pixelHeight = d.count * 15; // 件数×スケール調整
+        const icon = L.divIcon({
+          className: '',
+          html: '<div class="bar"></div>',
+          iconSize: [3, pixelHeight],
+          iconAnchor: [1, pixelHeight]
+        });
+        // マーカーとして配置
+        const marker = L.marker([d.lat, d.lon], { icon }).addTo(map);
+        // アニメーション開始
+        setTimeout(() => {
+          const barEl = marker.getElement().querySelector('.bar');
+          barEl.style.height = pixelHeight + 'px';
+        }, 200 + i * 100);
+      });
+    }
+  </script>
+</body>
+</html>
