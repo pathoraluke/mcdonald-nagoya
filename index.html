@@ -4,6 +4,13 @@
   <meta charset="UTF-8">
   <title>3D 円柱ニョキニョキ (deck.gl + MapLibre)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <!-- ① MapLibre GL CSS（これがないと地図タイルが見えません） -->
+  <link
+    href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css"
+    rel="stylesheet"
+  />
+
   <style>
     html, body, #map {
       margin: 0;
@@ -16,49 +23,19 @@
 <body>
   <div id="map"></div>
 
-  <!-- 1. MapLibre GL JS を読み込む -->
+  <!-- ② MapLibre GL JS -->
   <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
-  <!-- 2. deck.gl の Mapbox アダプタが見に行く名前にエイリアス -->
+  <!-- deck.gl は Mapbox Adapter 名義で MapLibre を参照します -->
   <script>window.mapboxgl = maplibregl;</script>
-  <!-- 3. deck.gl 本体 -->
+  <!-- ③ deck.gl 本体 -->
   <script src="https://unpkg.com/deck.gl@8.9.4/dist.min.js"></script>
-  <!-- 4. あなたのデータ -->
+  <!-- ④ あなたのデータ -->
   <script src="data.js"></script>
 
   <script>
-    // ─── レイヤー定義 ─────────────────────────────────
-
-    // 愛知県境界レイヤー
-    const boundaryLayer = new deck.GeoJsonLayer({
-      id: 'aichi-boundary',
-      data: 'Aichi.geojson',
-      stroked: true,
-      filled: false,
-      lineWidthMinPixels: 2,
-      getLineColor: [50, 50, 50, 200]
-    });
-
-    // 円柱レイヤー（初期は高さ 0）
-    const cylinderLayer = new deck.ColumnLayer({
-      id: 'cylinders',
-      data,
-      diskResolution: 12,
-      radius: 200,
-      extruded: true,
-      pickable: true,
-      getPosition: d => [d.lon, d.lat],
-      getElevation: d => 0,             // 初期 0
-      getFillColor: [255, 0, 0, 200],
-      transitions: {
-        getElevation: { duration: 1000 } // 1秒でアニメーション
-      }
-    });
-
-    // ─── DeckGL 初期化 ────────────────────────────────
-
+    // ─── １．DeckGL 初期化 ────────────────────────────
     const deckgl = new deck.Deck({
       container: 'map',
-      // ここで MapLibre スタイルを指定（背景地図を自動ロード）
       mapStyle: 'https://demotiles.maplibre.org/style.json',
       initialViewState: {
         longitude: 136.9066,
@@ -68,21 +45,45 @@
         bearing:  -20
       },
       controller: true,
-      layers: [ boundaryLayer, cylinderLayer ]
+      layers: [
+        // 境界
+        new deck.GeoJsonLayer({
+          id: 'aichi-boundary',
+          data: 'Aichi.geojson',
+          stroked: true,
+          filled: false,
+          lineWidthMinPixels: 2,
+          getLineColor: [50, 50, 50, 200]
+        }),
+        // 初期高さ0の円柱
+        new deck.ColumnLayer({
+          id: 'cylinders',
+          data,
+          diskResolution: 12,
+          radius: 200,
+          extruded: true,
+          pickable: true,
+          getPosition: d => [d.lon, d.lat],
+          getElevation: () => 0,
+          getFillColor: [255, 0, 0, 200],
+          transitions: {
+            getElevation: { duration: 1000 }
+          }
+        })
+      ]
     });
 
-    // ─── ニョキニョキ＝アニメーション発火 ─────────────
-
-    // 少し遅らせてから高さを更新すると見栄えが良いです
+    // ─── ２．少し待ってから「高さ」を差し替えてニョキニョキ動かす ─────────
     setTimeout(() => {
       deckgl.setProps({
-        layers: [
-          boundaryLayer,
-          // 同じ ID のレイヤーを clone() して getElevation を本来の高さに変更
-          cylinderLayer.clone({
-            getElevation: d => d.count * 1000
-          })
-        ]
+        layers: deckgl.props.layers.map(layer => {
+          if (layer.id === 'cylinders') {
+            return layer.clone({
+              getElevation: d => d.count * 1000
+            });
+          }
+          return layer;
+        })
       });
     }, 300);
   </script>
