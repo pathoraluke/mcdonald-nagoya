@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>3D円柱グラフ＋愛知県境界 (deck.gl + MapLibre)</title>
+  <title>3D円柱グラフ＋愛知県境界 (アニメーション付き)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <!-- MapLibre GL CSS -->
   <link
@@ -21,10 +21,12 @@
 <body>
   <div id="map"></div>
 
-  <!-- 必要なスクリプト -->
+  <!-- MapLibre GL JS -->
   <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+  <!-- deck.gl & MapboxOverlay -->
   <script src="https://unpkg.com/deck.gl@8.9.4/dist.min.js"></script>
   <script src="https://unpkg.com/@deck.gl/mapbox@8.9.4/dist.min.js"></script>
+  <!-- 店舗データ -->
   <script src="data.js"></script>
 
   <script>
@@ -40,7 +42,7 @@
     });
 
     map.on('load', () => {
-      // 2) deck.gl の GeoJsonLayer で愛知県境界を描画
+      // 2) 愛知県境界レイヤー
       const boundaryLayer = new deck.GeoJsonLayer({
         id: 'aichi-boundary',
         data: 'Aichi.geojson',
@@ -50,7 +52,7 @@
         getLineColor: [50, 50, 50, 200]
       });
 
-      // 3) deck.gl の ColumnLayer で円柱グラフを描画
+      // 3) アニメーション付き円柱グラフレイヤー
       const cylinderLayer = new deck.ColumnLayer({
         id: 'cylinders',
         data: data,
@@ -60,10 +62,17 @@
         pickable: true,
         getPosition: d => [d.lon, d.lat],
         getElevation: d => d.count * 50,
-        getFillColor: [255, 0, 0, 200]
+        getFillColor: [255, 0, 0, 200],
+        // ここで高さをアニメーション
+        transitions: {
+          getElevation: {
+            duration: 1000,
+            easing: t => t*t*(3 - 2*t)  // easeInOut
+          }
+        }
       });
 
-      // 4) MapboxOverlay を使って deck.gl レイヤーを地図に追加
+      // 4) MapboxOverlay を使って deck.gl を MapLibre に重ねる
       const overlay = new deck.MapboxOverlay({
         layers: [boundaryLayer, cylinderLayer]
       });
