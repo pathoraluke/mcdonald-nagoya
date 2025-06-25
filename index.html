@@ -2,45 +2,108 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>3D円柱グラフ（deck.gl）</title>
+  <title>愛知県マック円柱グラフ（3Dっぽく）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <style>body{margin:0;}#map{position:absolute;width:100%;height:100%;}</style>
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
+  />
+  <style>
+    /* ページ全体と地図コンテナを真っ白に */
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: #fff;
+    }
+    /* Leaflet 地図キャンバスも白背景に */
+    .leaflet-container {
+      background: #fff !important;
+    }
+
+    /* 3Dっぽい円柱アイコン */
+    .cylinder {
+      position: absolute;
+      bottom: 0;               /* 地面にくっつける */
+      left: 50%;               /* 中央寄せ */
+      width: 8px;              /* 円柱の直径 */
+      height: 100%;            /* コンテナいっぱい */
+      transform-origin: bottom center;
+      transform: scaleY(0);
+      transition: transform 1s ease-out;
+    }
+    .cylinder .body {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom, #ff6666 0%, #cc0000 100%);
+      border-radius: 4px;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+    }
+    .cylinder .top {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 6px;
+      background: #ff6666;
+      border-radius: 50% / 100%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+  </style>
 </head>
 <body>
   <div id="map"></div>
-  <script src="https://unpkg.com/deck.gl@8.9.4/dist.min.js"></script>
-  <script src="https://unpkg.com/@deck.gl/mapbox@8.9.4/dist.min.js"></script>
-  <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
-  <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet" />
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+  <!-- マック店舗データ -->
   <script src="data.js"></script>
+
   <script>
-    mapboxgl.accessToken = ''; // Mapboxトークン不要のタイルでも動作可
-    const map = new mapboxgl.Map({
-      container: 'map',
-      style: 'https://demotiles.maplibre.org/style.json',
-      center: [136.9066, 35.1815],
+    // 地図初期化（白地図：タイルなし）
+    const map = L.map('map', {
+      center: [35.1815, 136.9066],
       zoom: 11,
-      pitch: 45,
-      bearing: -20
+      zoomControl: false,
+      attributionControl: false
     });
 
-    map.on('load', () => {
-      const cylinderLayer = new deck.ColumnLayer({
-        id: 'columns',
-        data: data,
-        diskResolution: 12,
-        radius: 200,
-        extruded: true,
-        getPosition: d => [d.lon, d.lat],
-        getElevation: d => d.count * 50,
-        getFillColor: [200, 30, 30, 180],
-        pickable: true
+    // Aichi.geojson を読み込んで境界線だけ描画
+    fetch('Aichi.geojson')
+      .then(r => {
+        if (!r.ok) throw new Error('Aichi.geojson が見つかりません');
+        return r.json();
+      })
+      .then(geo => {
+        L.geoJSON(geo, {
+          style: { color: '#333', weight: 2, fill: false }
+        }).addTo(map);
+        // 棒グラフを描く
+        drawCylinders();
+      })
+      .catch(err => console.error(err));
+
+    function drawCylinders() {
+      data.forEach((d, i) => {
+        const h = d.count * 15; // 件数 × スケール調整
+        const html = `
+          <div class="cylinder" style="height:${h}px">
+            <div class="body"></div>
+            <div class="top"></div>
+          </div>`;
+        const icon = L.divIcon({
+          html: html,
+          className: '',
+          iconSize: [8, h],
+          iconAnchor: [4, h]
+        });
+        const marker = L.marker([d.lat, d.lon], { icon }).addTo(map);
+        setTimeout(() => {
+          marker.getElement().querySelector('.cylinder').style.transform = 'scaleY(1)';
+        }, 200 + i * 100);
       });
-      const deckOverlay = new deck.DeckGL({
-        map,
-        layers: [cylinderLayer]
-      });
-    });
+    }
   </script>
 </body>
 </html>
