@@ -81,45 +81,56 @@
         lineWidthMinPixels: 1
       });
 
-      // 円柱レイヤー（アニメーション用）
-      const cylinderLayer = new deck.ColumnLayer({
-        id: 'cylinders',
+      // 初期円柱レイヤー（高さ0）
+      const initialCylinderLayer = new deck.ColumnLayer({
+        id: 'cylinders-initial',
         data: data,
         diskResolution: 12,
         radius: 400,
         extruded: true,
         pickable: true,
         getPosition: d => [d.lon, d.lat],
-        getElevation: () => 0, // 初期状態は高さ0
+        getElevation: () => 0,
         getFillColor: [255, 0, 0, 200],
         transitions: {
           getElevation: {
             duration: 2000, // 2秒間のアニメーション
-            easing: t => {
-              const c4 = (2 * Math.PI) / 3;
-              return t === 0 ? 0 : t === 1 ? 1 : -Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
-                        }
+            easing: t => t * t * (3.0 - 2.0 * t) // スムーズなease-in-out
+          }
         }
       });
 
       // 初期レイヤーを設定
       deckOverlay.setProps({
-        layers: [boundaryLayer, nagoyaLayer, cylinderLayer]
+        layers: [boundaryLayer, nagoyaLayer, initialCylinderLayer]
       });
 
-      // アニメーション開始（1秒後）
+      // アニメーション開始
       setTimeout(() => {
         console.log('Starting animation...');
         
-        // 同じレイヤーの高さを変更してアニメーション実行
-        const animatedCylinderLayer = cylinderLayer.clone({
-          getElevation: d => d.count * 2000 // 最終的な高さ
+        const animatedCylinderLayer = new deck.ColumnLayer({
+          id: 'cylinders-animated',
+          data: data,
+          diskResolution: 12,
+          radius: 400,
+          extruded: true,
+          pickable: true,
+          getPosition: d => [d.lon, d.lat],
+          getElevation: d => d.count * 2000,
+          getFillColor: [255, 0, 0, 200],
+          transitions: {
+            getElevation: {
+              duration: 2000, // 2秒間のアニメーション
+              easing: t => t * t * (3.0 - 2.0 * t) // スムーズなease-in-out
+            }
+          }
         });
 
         deckOverlay.setProps({
           layers: [boundaryLayer, nagoyaLayer, animatedCylinderLayer]
         });
-      }, 1000);
+      }, 500);
     });
 
     // エラーハンドリング
