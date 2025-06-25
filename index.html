@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>愛知県マック円柱グラフ</title>
+  <title>愛知県マック円柱グラフ（3Dっぽく）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <!-- Leaflet CSS -->
   <link
@@ -11,71 +11,44 @@
   />
   <style>
     html, body, #map { height:100%; margin:0; padding:0; }
-    /* 棒グラフ（円柱）アイコン */
-    .bar {
+
+    /* 3Dっぽい円柱アイコン */
+    .cylinder {
       position: absolute;
-      bottom: 0;           /* 下端を地面に固定 */
-      left: 50%;           /* 横幅の中央 */
-      width: 4px;          /* 円柱の太さ */
-      height: 100%;        /* コンテナいっぱい */
-      background: red;
+      bottom: 0;               /* 地面にくっつける */
+      left: 50%;               /* 真ん中寄せ */
+      width: 8px;              /* 円柱の直径 */
+      height: 100%;            /* コンテナいっぱい */
       transform-origin: bottom center;
-      transform: scaleY(0); /* 初期は0倍 */
+      transform: scaleY(0);
       transition: transform 1s ease-out;
+    }
+    .cylinder .body {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom, #ff6666 0%, #cc0000 100%);
+      border-radius: 4px;      /* 側面の丸み */
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+    }
+    .cylinder .top {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 6px;             /* 楕円の縦半径×2 */
+      background: #ff6666;     /* 上面の色：本体グラデ上端色と合わせる */
+      border-radius: 50% / 100%;/* 上下面が楕円に */
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
     }
   </style>
 </head>
 <body>
   <div id="map"></div>
 
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-  <!-- ご用意いただいたデータ -->
   <script src="data.js"></script>
-
   <script>
-    // 1) 地図初期化（白地図：タイル無し）
     const map = L.map('map', {
       center: [35.1815, 136.9066],
       zoom: 11,
       zoomControl: false,
-      attributionControl: false
-    });
-
-    // 2) Aichi.geojson を読み込んで境界線のみ描画
-    fetch('Aichi.geojson')
-      .then(r => r.json())
-      .then(geojson => {
-        L.geoJSON(geojson, {
-          style: { color: '#333', weight: 2, fill: false }
-        }).addTo(map);
-        // 3) 棒グラフを描画
-        drawBars();
-      })
-      .catch(err => console.error('Aichi.geojson 読み込みエラー:', err));
-
-    function drawBars() {
-      data.forEach((d, i) => {
-        const pixelHeight = d.count * 15; // 件数×スケール調整
-
-        // DivIconコンテナを pixelHeight の高さに設定
-        const icon = L.divIcon({
-          className: '',
-          html: '<div class="bar"></div>',
-          iconSize: [4, pixelHeight],
-          iconAnchor: [2, pixelHeight]  // 下端を基準に
-        });
-
-        // マーカーとして配置
-        const marker = L.marker([d.lat, d.lon], { icon }).addTo(map);
-
-        // アニメーション開始：scaleY を 1 に
-        setTimeout(() => {
-          const barEl = marker.getElement().querySelector('.bar');
-          barEl.style.transform = 'scaleY(1)';
-        }, 200 + i * 100);
-      });
-    }
-  </script>
-</body>
-</html>
