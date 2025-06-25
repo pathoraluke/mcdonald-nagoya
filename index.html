@@ -4,8 +4,10 @@
   <meta charset="UTF-8">
   <title>愛知県アウトライン＋名古屋区分けマップ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"/>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
+  />
   <style>
     html, body, #map { height:100%; margin:0; padding:0; }
     .bar {
@@ -20,12 +22,13 @@
 
 <div id="map"></div>
 
+<!-- ライブラリ読み込み -->
 <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 <script src="data.js"></script>
 
 <script>
-// 地図初期化（背景タイルなし）
+// 1) 地図初期化（タイルなしの白地図）
 const map = L.map('map', {
   center: [35.1815, 136.9066],
   zoom: 11,
@@ -33,43 +36,49 @@ const map = L.map('map', {
   attributionControl: false
 });
 
-// ① 単純化済み市町村界を読み込んで結合 → 県外周だけを描画
+// 2) 市町村界 GeoJSON を読み込み、すべてを MultiPolygon にまとめる
 fetch('aichi_simplified.geojson')
   .then(res => res.json())
   .then(geojson => {
-    // Turf.js で dissolve（結合）
-    let unionPoly = geojson.features[0];
-    for (let i = 1; i < geojson.features.length; i++) {
-      unionPoly = turf.union(unionPoly, geojson.features[i]);
-    }
-    L.geoJSON(unionPoly, {
+    // 各フィーチャの座標配列を集める
+    const multiCoords = geojson.features
+      .filter(f => f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'))
+      .map(f => {
+        // Polygon は [ [ ... ] ], MultiPolygon は [ [ [...], ...] ]
+        return f.geometry.type === 'Polygon'
+          ? [f.geometry.coordinates]
+          : f.geometry.coordinates;
+      })
+      .flat();
+    // FeatureCollection ではなく単一の MultiPolygon Feature を作成
+    const multiPoly = turf.multiPolygon(multiCoords, {});
+    // 県外周だけを描画
+    L.geoJSON(multiPoly, {
       style: { color: '#333', weight: 2, fill: false }
     }).addTo(map);
-
-    // ② 名古屋市区界を一重で重ねる
     return fetch('nagoya_wards.geojson');
   })
   .then(res => res.json())
   .then(geojson => {
+    // 3) 名古屋区界を一重で重ねる
     L.geoJSON(geojson, {
       style: { color: '#666', weight: 1.5, fill: false }
     }).addTo(map);
-
-    // ③ 棒グラフをアニメーション表示
+    // 4) 棒グラフアニメーションを表示
     data.forEach((d, i) => {
       const h = d.count * 10;
       const icon = L.divIcon({
-        html: '<div class="bar" style="height:0px;"></div>',
+        html: '<div class="bar" style="height:0px"></div>',
         iconSize: [12, 0],
         iconAnchor: [6, 0]
       });
       const marker = L.marker([d.lat, d.lon], { icon }).addTo(map);
       setTimeout(() => {
         marker.getElement().firstChild.style.height = h + 'px';
-      }, 200 + i*50);
+      }, 200 + i * 50);
     });
   })
-  .catch(err => console.error('GeoJSON 読み込みエラー:', err));
+  .catch(err => console.error('GeoJSON読み込みエラー:', err));
 </script>
 
 </body>
