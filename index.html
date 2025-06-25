@@ -2,13 +2,10 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>3D円柱グラフ＋愛知県境界 (手動アニメーション)</title>
+  <title>3D円柱グラフ＋愛知県境界 (transitions 版)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <!-- MapLibre GL CSS -->
-  <link
-    href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css"
-    rel="stylesheet"
-  />
+  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css"
+        rel="stylesheet"/>
   <style>
     html, body, #map {
       height:100%; margin:0; padding:0; background:#fff;
@@ -17,13 +14,10 @@
 </head>
 <body>
   <div id="map"></div>
-
-  <!-- 必要なスクリプト -->
   <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/deck.gl@8.9.4/dist.min.js"></script>
   <script src="https://unpkg.com/@deck.gl/mapbox@8.9.4/dist.min.js"></script>
   <script src="data.js"></script>
-
   <script>
     const map = new maplibregl.Map({
       container: 'map',
@@ -46,45 +40,38 @@
         getLineColor: [50,50,50,200]
       });
 
-      // 最初は高さ０でレイヤーだけ用意
+      // ① 同じインスタンスで最初は高さ0、transitions を有効化
+      const cylinderLayer = new deck.ColumnLayer({
+        id: 'cylinders',
+        data,
+        diskResolution: 12,
+        radius: 200,
+        extruded: true,
+        pickable: true,
+        getPosition: d => [d.lon, d.lat],
+        getElevation: d => 0,               // 初期0
+        getFillColor: [255,0,0,200],
+        transitions: {
+          // getElevation の変化を１秒かけて補間
+          getElevation: { duration: 1000 }
+        }
+      });
+
+      // ② Overlay を作成
       const overlay = new deck.MapboxOverlay({
-        layers: [ boundaryLayer ]
+        layers: [ boundaryLayer, cylinderLayer ]
       });
       map.addControl(overlay);
 
-      // アニメーションパラメータ
-      const DURATION = 1000;           // 完成までのミリ秒
-      const START  = performance.now();
-
-      function animate(time) {
-        const t = Math.min((time - START) / DURATION, 1);
-
-        // 各データを t 比率で伸ばす
-        const cyl = new deck.ColumnLayer({
-          id: 'cylinders',
-          data,
-          diskResolution: 12,
-          radius: 200,
-          extruded: true,
-          pickable: true,
-          getPosition: d => [d.lon, d.lat],
-          getElevation: d => d.count * 1000 * t,   // t=0→0m, t=1→最終高さ
-          getFillColor: [255,0,0,200]
-        });
-
-        // レイヤーを差し替え
-        overlay.setProps({
-          layers: [ boundaryLayer, cyl ]
-        });
-
-        if (t < 1) {
-          requestAnimationFrame(animate);
-        }
-      }
-
-      // ふわっと始めたいなら setTimeout を少し入れてもOK
+      // ③ 少し待ってから elevation プロパティだけ差し替え
       setTimeout(() => {
-        requestAnimationFrame(animate);
+        // *レイヤーを再生成せずに* props のみ更新
+        cylinderLayer.props.getElevation = d => d.count * 1000;
+        // overlay に同じインスタンスを再セット
+        overlay.setProps({
+          layers: [ boundaryLayer, cylinderLayer ]
+        });
+        // deck.gl が自動で 0→(count*1000) を 1秒かけてアニメーション
       }, 300);
     });
   </script>
