@@ -3,56 +3,78 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <title>名古屋マクドナルド棒グラフ</title>
+  <title>名古屋マクドナルド棒グラフ with OSM</title>
   <style>
-    body {{ margin: 0; overflow: hidden; }}
-    canvas {{ display: block; }}
+    html, body, #map {{
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }}
+    canvas {{
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 400;
+      pointer-events: none;
+    }}
   </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
 </head>
 <body>
+  <div id="map"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r148/three.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
   <script src="data.js"></script>
   <script>
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf0f0f0);
+    const map = L.map('map').setView([35.15, 136.9], 12);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {{
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }}).addTo(map);
 
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 200, 300);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.top = 0;
+    renderer.domElement.style.left = 0;
     document.body.appendChild(renderer.domElement);
 
-    const refLat = 35.15;
-    const refLon = 136.90;
-    const scale = 10000;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 1, 1000);
+    camera.position.z = 400;
+
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(0, 0, 500).normalize();
+    scene.add(light);
 
     const bars = [];
 
+    function latLngToScenePoint(lat, lng) {{
+      const point = map.latLngToContainerPoint([lat, lng]);
+      const x = point.x - window.innerWidth / 2;
+      const y = - (point.y - window.innerHeight / 2);
+      return new THREE.Vector3(x, y, 0);
+    }}
+
     data.forEach(d => {{
-      const x = (d.lon - refLon) * scale;
-      const z = (d.lat - refLat) * scale;
-      const geometry = new THREE.BoxGeometry(5, 0.1, 5);
+      const position = latLngToScenePoint(d.lat, d.lon);
+      const geometry = new THREE.BoxGeometry(10, 0.1, 10);
       const material = new THREE.MeshPhongMaterial({ color: 0xff6600 });
       const cube = new THREE.Mesh(geometry, material);
-      cube.position.set(x, 0.05, z);
+      cube.position.copy(position);
+      cube.position.z = 0.05;
       scene.add(cube);
       bars.push({ mesh: cube, target: d.value * 10 });
     }});
 
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(1, 2, 3);
-    scene.add(light);
-    scene.add(new THREE.AmbientLight(0x888888));
-
-    camera.lookAt(0, 0, 0);
-
     function animate() {{
       requestAnimationFrame(animate);
       bars.forEach(bar => {{
-        if (bar.mesh.scale.y < bar.target) {{
-          bar.mesh.scale.y += 0.2;
-          bar.mesh.position.y = (bar.mesh.scale.y * 0.5);
+        if (bar.mesh.scale.z < bar.target) {{
+          bar.mesh.scale.z += 0.2;
+          bar.mesh.position.z = bar.mesh.scale.z * 0.5;
         }}
       }});
       renderer.render(scene, camera);
