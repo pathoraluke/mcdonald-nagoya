@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>愛知県マック棒グラフ（赤い線）</title>
+  <title>愛知県マック円柱グラフ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <!-- Leaflet CSS -->
   <link
@@ -11,20 +11,24 @@
   />
   <style>
     html, body, #map { height:100%; margin:0; padding:0; }
-    /* 棒グラフのアイコン */
+    /* 棒グラフ（円柱）アイコン */
     .bar {
-      width: 3px;               /* 線の太さ */
-      height: 0px;              /* 初期は地面（高さ０） */
-      background: red;          /* 赤い線 */
-      transform-origin: bottom; /* 下端を基点に伸びる */
-      transition: height 1s ease-out;
+      position: absolute;
+      bottom: 0;           /* 下端を地面に固定 */
+      left: 50%;           /* 横幅の中央 */
+      width: 4px;          /* 円柱の太さ */
+      height: 100%;        /* コンテナいっぱい */
+      background: red;
+      transform-origin: bottom center;
+      transform: scaleY(0); /* 初期は0倍 */
+      transition: transform 1s ease-out;
     }
   </style>
 </head>
 <body>
   <div id="map"></div>
 
-  <!-- Leaflet -->
+  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
   <!-- ご用意いただいたデータ -->
   <script src="data.js"></script>
@@ -53,18 +57,22 @@
     function drawBars() {
       data.forEach((d, i) => {
         const pixelHeight = d.count * 15; // 件数×スケール調整
+
+        // DivIconコンテナを pixelHeight の高さに設定
         const icon = L.divIcon({
           className: '',
           html: '<div class="bar"></div>',
-          iconSize: [3, pixelHeight],
-          iconAnchor: [1, pixelHeight]
+          iconSize: [4, pixelHeight],
+          iconAnchor: [2, pixelHeight]  // 下端を基準に
         });
+
         // マーカーとして配置
         const marker = L.marker([d.lat, d.lon], { icon }).addTo(map);
-        // アニメーション開始
+
+        // アニメーション開始：scaleY を 1 に
         setTimeout(() => {
           const barEl = marker.getElement().querySelector('.bar');
-          barEl.style.height = pixelHeight + 'px';
+          barEl.style.transform = 'scaleY(1)';
         }, 200 + i * 100);
       });
     }
