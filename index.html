@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>3D円柱グラフ＋愛知県境界 (手動アニメーション)</title>
+  <title>3D円柱グラフ＋愛知県境界 (立ち上がり＆３Ｄ視点)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <!-- MapLibre GL CSS -->
   <link
@@ -11,10 +11,10 @@
   />
   <style>
     html, body, #map {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      background: #fff;
+      height:100%;
+      margin:0;
+      padding:0;
+      background:#fff;
     }
   </style>
 </head>
@@ -28,18 +28,20 @@
   <script src="data.js"></script>
 
   <script>
+    // 1) MapLibre の地図を「傾けて」作成
     const map = new maplibregl.Map({
       container: 'map',
       style: 'https://demotiles.maplibre.org/style.json',
       center: [136.9066, 35.1815],
       zoom: 11,
-      pitch: 45,
-      bearing: -20,
+      pitch: 50,      // ← ここが肝心！上からの視点を傾ける
+      bearing: -20,   // ← 地図を少し回転させてもＯＫ
+      projection: 'mercator',
       attributionControl: false
     });
 
     map.on('load', () => {
-      // 県境レイヤー
+      // 2) 愛知県境界レイヤー
       const boundaryLayer = new deck.GeoJsonLayer({
         id: 'aichi-boundary',
         data: 'Aichi.geojson',
@@ -49,7 +51,7 @@
         getLineColor: [50,50,50,200]
       });
 
-      // 初期：高さ0の円柱レイヤー
+      // 3) 初期高さ0の円柱レイヤー
       let cylinderLayer = new deck.ColumnLayer({
         id: 'cylinders',
         data,
@@ -58,19 +60,19 @@
         extruded: true,
         pickable: true,
         getPosition: d => [d.lon, d.lat],
-        getElevation: d => 0,            // 初期は0
-        getFillColor: [255, 0, 0, 200]
+        getElevation: _ => 0,             // 初期は0m
+        getFillColor: [255,0,0,200]
       });
 
-      // MapboxOverlayに追加
+      // 4) deck.gl を MapLibre に乗せる
       const overlay = new deck.MapboxOverlay({
-        layers: [boundaryLayer, cylinderLayer]
+        layers: [ boundaryLayer, cylinderLayer ]
       });
       map.addControl(overlay);
 
-      // 少し待ってから高さを更新 → 自動でアニメーション
+      // 5) 少し待ってから高さを更新し、ニョキニョキ動かす
       setTimeout(() => {
-        // 新しいレイヤーを同IDで再構築
+        // 円柱レイヤーを再定義
         cylinderLayer = new deck.ColumnLayer({
           id: 'cylinders',
           data,
@@ -79,18 +81,17 @@
           extruded: true,
           pickable: true,
           getPosition: d => [d.lon, d.lat],
-          getElevation: d => d.count * 1000, // 目標の高さ
-          getFillColor: [255, 0, 0, 200],
+          getElevation: d => d.count * 1000,  // ← ここで高さを設定
+          getFillColor: [255,0,0,200],
           transitions: {
             getElevation: { duration: 1000 }
           }
         });
         // レイヤーを差し替え
         overlay.setProps({
-          layers: [boundaryLayer, cylinderLayer]
+          layers: [ boundaryLayer, cylinderLayer ]
         });
       }, 300);
-
     });
   </script>
 </body>
