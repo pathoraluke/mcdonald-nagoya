@@ -2,43 +2,27 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>3D 円柱ニョキニョキ（真っ白背景）</title>
+  <title>【最終版】3D 円柱ニョキニョキ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
   <style>
-    html, body, #map {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      background: #fff;
-    }
+    html, body, #map { height: 100%; margin: 0; padding: 0; background: #fff; }
   </style>
 </head>
 <body>
   <div id="map"></div>
-  
-  <!-- MapLibre GL JS -->
+
   <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-  
-  <!-- Deck.gl (より安定したバージョン) -->
   <script src="https://unpkg.com/deck.gl@8.8.27/dist.min.js"></script>
-  
   <script src="data.js"></script>
-  
+
   <script>
-    // MapLibre地図の初期化
     const map = new maplibregl.Map({
       container: 'map',
       style: {
         version: 8,
         sources: {},
-        layers: [
-          {
-            id: 'background',
-            type: 'background',
-            paint: { 'background-color': '#ffffff' }
-          }
-        ]
+        layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#ffffff' }}]
       },
       center: [136.9066, 35.1815],
       zoom: 11,
@@ -46,94 +30,81 @@
       bearing: -20
     });
 
-    // 地図読み込み完了を待つ
     map.on('load', () => {
       console.log('Map loaded successfully');
-      console.log('Data points:', data.length);
       
-      // Deck.glオーバーレイの作成
       const deckOverlay = new deck.MapboxOverlay({
         interleaved: false,
         layers: []
       });
 
-      // 地図にオーバーレイを追加
       map.addControl(deckOverlay);
 
-      // 境界レイヤー
-      const boundaryLayer = new deck.GeoJsonLayer({
-        id: 'aichi-boundary',
-        data: 'Aichi.geojson',
-        stroked: true,
-        filled: false,
-        lineWidthMinPixels: 2,
-        getLineColor: [50, 50, 50, 200]
-      });
+      const boundaryLayer = new deck.GeoJsonLayer({ id: 'aichi-boundary', data: 'Aichi.geojson', stroked: true, filled: false, lineWidthMinPixels: 2, getLineColor: [50, 50, 50, 200] });
+      const nagoyaLayer = new deck.GeoJsonLayer({ id: 'nagoya-wards', data: 'Nagoyaward.geojson', stroked: true, filled: true, getLineColor: [50, 50, 50, 200], getFillColor: [255, 255, 178, 160], lineWidthMinPixels: 1 });
 
-      // 名古屋区レイヤー
-      const nagoyaLayer = new deck.GeoJsonLayer({
-        id: 'nagoya-wards',
-        data: 'Nagoyaward.geojson',
-        stroked: true,
-        filled: true,
-        getLineColor: [50, 50, 50, 200],
-        getFillColor: [255, 255, 178, 160],
-        lineWidthMinPixels: 1
-      });
+      // --- ここからが新しいアニメーションの実装 ---
 
-      // 初期円柱レイヤー（高さ0）
-      const initialCylinderLayer = new deck.ColumnLayer({
-        id: 'cylinders-initial',
+      // 初期状態の円柱レイヤーを作成（高さは0）
+      const cylinderLayer = new deck.ColumnLayer({
+        id: 'cylinders',
         data: data,
         diskResolution: 12,
         radius: 400,
         extruded: true,
-        pickable: true,
         getPosition: d => [d.lon, d.lat],
-        getElevation: () => 0,
+        getElevation: 0, // ★初期高さは0
         getFillColor: [255, 0, 0, 200],
-        transitions: {
-          getElevation: {
-            duration: 2000, // 2秒間のアニメーション
-            easing: t => t * t * (3.0 - 2.0 * t) // スムーズなease-in-out
-          }
-        }
+        // transitions プロパティはもう不要なので削除
       });
 
-      // 初期レイヤーを設定
+      // まず高さ0のレイヤーを描画
       deckOverlay.setProps({
-        layers: [boundaryLayer, nagoyaLayer, initialCylinderLayer]
+        layers: [boundaryLayer, nagoyaLayer, cylinderLayer]
       });
 
-      // アニメーション開始
-      setTimeout(() => {
-        console.log('Starting animation...');
-        
-        const animatedCylinderLayer = new deck.ColumnLayer({
-          id: 'cylinders-animated',
-          data: data,
-          diskResolution: 12,
-          radius: 400,
-          extruded: true,
-          pickable: true,
-          getPosition: d => [d.lon, d.lat],
-          getElevation: d => d.count * 2000,
-          getFillColor: [255, 0, 0, 200],
-          transitions: {
-            getElevation: {
-              duration: 2000, // 2秒間のアニメーション
-              easing: t => t * t * (3.0 - 2.0 * t) // スムーズなease-in-out
-            }
-          }
-        });
+      // アニメーションを実行する関数
+      const animateCylinders = () => {
+        const duration = 2000; // アニメーション時間（ミリ秒）
+        let startTime = null;
 
-        deckOverlay.setProps({
-          layers: [boundaryLayer, nagoyaLayer, animatedCylinderLayer]
-        });
+        const animateStep = (timestamp) => {
+          if (!startTime) {
+            startTime = timestamp;
+          }
+
+          // アニメーションの進捗を計算 (0.0 から 1.0)
+          const progress = Math.min((timestamp - startTime) / duration, 1.0);
+          
+          // 進捗に合わせてレイヤーを更新
+          const animatedLayer = cylinderLayer.clone({
+            // getElevationを、進捗に応じた高さに更新
+            getElevation: d => (d.count * 2000) * progress 
+          });
+
+          deckOverlay.setProps({
+            layers: [boundaryLayer, nagoyaLayer, animatedLayer]
+          });
+
+          // アニメーションが完了していなければ、次のフレームを要求
+          if (progress < 1.0) {
+            requestAnimationFrame(animateStep);
+          } else {
+            console.log('Animation complete!');
+          }
+        };
+
+        // アニメーションの最初のフレームを要求
+        requestAnimationFrame(animateStep);
+      };
+
+      // 地図読み込みの500ミリ秒後にアニメーションを開始
+      setTimeout(() => {
+        console.log('Starting manual animation...');
+        animateCylinders();
       }, 500);
     });
 
-    // エラーハンドリング
     map.on('error', (e) => {
       console.error('Map error:', e);
     });
