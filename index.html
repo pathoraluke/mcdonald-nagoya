@@ -1,77 +1,90 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>3D円柱グラフ＋愛知県境界 (自前アニメーション)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css"
-        rel="stylesheet"/>
+  <meta charset="UTF-8">
+  <title>3D円柱グラフ＋愛知県境界 (DeckGL版)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <style>
-    html,body,#map{ height:100%;margin:0;padding:0;background:#fff }
+    html, body { margin:0; padding:0; height:100%; }
+    #map { position:absolute; top:0; left:0; right:0; bottom:0; }
   </style>
+  <!-- MapLibre GL CSS (背景表示用) -->
+  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet"/>
 </head>
 <body>
   <div id="map"></div>
+
+  <!-- 必要スクリプト -->
   <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/deck.gl@8.9.4/dist.min.js"></script>
-  <script src="https://unpkg.com/@deck.gl/mapbox@8.9.4/dist.min.js"></script>
   <script src="data.js"></script>
+
   <script>
+    // 1) MapLibre 背景地図
     const map = new maplibregl.Map({
       container: 'map',
       style: 'https://demotiles.maplibre.org/style.json',
-      center: [136.9066,35.1815],
-      zoom:11,pitch:50,bearing:-20,
-      attributionControl:false
+      center: [136.9066, 35.1815],
+      zoom: 11,
+      pitch: 50,
+      bearing: -20,
+      interactive: false  // DeckGL 側でコントローラ有効化するので地図は静的に
     });
 
-    map.on('load', () => {
-      const boundary = new deck.GeoJsonLayer({
-        id: 'aichi-boundary',
-        data: 'Aichi.geojson',
-        stroked: true, filled: false,
-        lineWidthMinPixels:2,
-        getLineColor:[50,50,50,200]
-      });
+    // 2) GeoJSON レイヤー（境界）
+    const boundaryLayer = new deck.GeoJsonLayer({
+      id: 'aichi-boundary',
+      data: 'Aichi.geojson',
+      stroked: true,
+      filled: false,
+      lineWidthMinPixels: 2,
+      getLineColor: [50,50,50,200]
+    });
 
-      // ここでは高さゼロでインスタンス化
-      const cyl = new deck.ColumnLayer({
-        id: 'cylinders',
-        data, diskResolution:12, radius:200,
-        extruded:true, pickable:true,
-        getPosition:d=>[d.lon,d.lat],
-        getElevation:_=>0,            // 初期0
-        getFillColor:[255,0,0,200]
-      });
-
-      const overlay = new deck.MapboxOverlay({ layers:[boundary, cyl] });
-      map.addControl(overlay);
-
-      // アニメーションループ
-      const DURATION = 1000;       // 1秒
-      const start    = performance.now();
-
-      function frame(now) {
-        const t = Math.min((now - start) / DURATION, 1);
-
-        // フレームごとに高さを少しずつ更新
-        cyl.props.getElevation = d => d.count * 1000 * t;
-
-        // レイヤーを差し替え
-        overlay.setProps({ layers: [boundary, cyl] });
-
-        // 地図を再描画
-        map.triggerRepaint();
-
-        // t<1 の間ループ
-        if (t < 1) {
-          requestAnimationFrame(frame);
-        }
+    // 3) 初期高さ 0 の円柱レイヤー with transitions
+    const cylinderLayer = new deck.ColumnLayer({
+      id: 'cylinders',
+      data,
+      diskResolution: 12,
+      radius: 200,
+      extruded: true,
+      pickable: true,
+      getPosition: d => [d.lon, d.lat],
+      getElevation: d => 0,            // 初めは 0
+      getFillColor: [255,0,0,200],
+      transitions: {
+        getElevation: { duration: 1000 }
       }
-
-      // 少し遅らせて開始すると見栄えUP
-      setTimeout(() => requestAnimationFrame(frame), 200);
     });
+
+    // 4) Deck インスタンスの生成
+    const deckgl = new deck.Deck({
+      canvas: 'deck-canvas',      // DeckGL 用のキャンバス（自動作成）
+      initialViewState: {
+        longitude: 136.9066,
+        latitude:  35.1815,
+        zoom:      11,
+        pitch:     50,
+        bearing:  -20
+      },
+      controller: true,            // ズーム・パン・傾き・回転を有効に
+      layers: [ boundaryLayer, cylinderLayer ],
+      onBeforeRender: () => {
+        // MapLibre 地図と同期させる
+        const vs = deckgl.viewManager.getViewports()[0];
+        map.jumpTo({ center: vs.center, zoom: vs.zoom, bearing: vs.bearing, pitch: vs.pitch });
+      }
+    });
+
+    // 5) 高さを更新して transitions を発火
+    setTimeout(() => {
+      deckgl.setProps({
+        layers: [
+          boundaryLayer,
+          cylinderLayer.clone({ getElevation: d => d.count * 1000 })
+        ]
+      });
+    }, 300);
   </script>
 </body>
 </html>
