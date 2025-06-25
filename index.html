@@ -2,71 +2,40 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>愛知県・名古屋区分けマップ</title>
+  <title>愛知県市町村・名古屋市区分けマップ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"/>
   <style>
     html, body, #map { height:100%; margin:0; padding:0; }
-    .bar {
-      background: rgba(0,128,255,0.8);
-      width:12px;
-      transform-origin: bottom;
-      transition: height 1s ease-out;
-    }
+    .bar { background: rgba(0,128,255,0.8); width:12px; transform-origin: bottom; transition: height 1s ease-out; }
   </style>
 </head>
 <body>
-
 <div id="map"></div>
-
-<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-<!-- 自分で生成した店舗データ -->
 <script src="data.js"></script>
-
 <script>
-// 1) 地図初期化（タイルなしの白地図）
-const map = L.map('map', {
-  center: [35.1815, 136.9066],
-  zoom: 11,
-  zoomControl: false,
-  attributionControl: false
-});
+// Initialize map
+const map = L.map('map', { center: [35.1815,136.9066], zoom: 11, zoomControl: false, attributionControl: false });
 
-// 2) 愛知県の「市町村界」を読み込んで表示
+// Load municipalities
 fetch('aichi_municipalities.geojson')
-  .then(r => r.json())
-  .then(geo => {
-    L.geoJSON(geo, {
-      style: { color: '#666', weight: 1, fill: false }
-    }).addTo(map);
-
-    // 3) 名古屋市「区界」を読み込んで市町村界の上に重ねる
+  .then(r=>r.json())
+  .then(muni=>{
+    L.geoJSON(muni, { style:{ color:'#666', weight:1, fill:false } }).addTo(map);
     return fetch('nagoya_wards.geojson');
   })
-  .then(r => r.json())
-  .then(geo => {
-    L.geoJSON(geo, {
-      style: { color: '#333', weight: 1.5, fill: false }
-    }).addTo(map);
-
-    // 4) 区ごと店舗数データで棒をアニメーション表示
-    data.forEach((d,i) => {
-      const h = d.count * 10;
-      const ic = L.divIcon({
-        html: '<div class="bar" style="height:0px;"></div>',
-        iconSize: [12,0],
-        iconAnchor: [6,0]
-      });
-      const m = L.marker([d.lat, d.lon], { icon: ic }).addTo(map);
-      setTimeout(() => {
-        m.getElement().firstChild.style.height = h + 'px';
-      }, 200 + i*50);
+  .then(r=>r.json())
+  .then(wards=>{
+    L.geoJSON(wards, { style:{ color:'#333', weight:1.5, fill:false } }).addTo(map);
+    data.forEach((d,i)=>{
+      const h=d.count*10;
+      const icon=L.divIcon({ html:'<div class="bar" style="height:0px;"></div>', iconSize:[12,0], iconAnchor:[6,0] });
+      const m=L.marker([d.lat,d.lon],{icon}).addTo(map);
+      setTimeout(()=>{ m.getElement().firstChild.style.height=h+'px'; },200+i*50);
     });
   })
-  .catch(err => console.error(err));
-
+  .catch(err=>console.error(err));
 </script>
 </body>
 </html>
