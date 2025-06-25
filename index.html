@@ -20,7 +20,7 @@
   <!-- MapLibre GL JS -->
   <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
   
-  <!-- Deck.gl (より安定したバージョン) -->
+  <!-- Deck.gl -->
   <script src="https://unpkg.com/deck.gl@8.8.27/dist.min.js"></script>
   
   <script src="data.js"></script>
@@ -81,16 +81,17 @@
         lineWidthMinPixels: 1
       });
 
-      // 初期円柱レイヤー（高さ0）
-      const initialCylinderLayer = new deck.ColumnLayer({
-        id: 'cylinders-initial',
+      // 円柱レイヤー（高さは動的に更新）
+      let elevationScale = 0; // 初期高さスケール
+      const cylinderLayer = new deck.ColumnLayer({
+        id: 'cylinders',
         data: data,
         diskResolution: 12,
         radius: 400,
         extruded: true,
         pickable: true,
         getPosition: d => [d.lon, d.lat],
-        getElevation: () => 0,
+        getElevation: d => d.count * 2000 * elevationScale,
         getFillColor: [255, 0, 0, 200],
         transitions: {
           getElevation: {
@@ -102,33 +103,18 @@
 
       // 初期レイヤーを設定
       deckOverlay.setProps({
-        layers: [boundaryLayer, nagoyaLayer, initialCylinderLayer]
+        layers: [boundaryLayer, nagoyaLayer, cylinderLayer]
       });
 
       // アニメーション開始
       setTimeout(() => {
         console.log('Starting animation...');
-        
-        const animatedCylinderLayer = new deck.ColumnLayer({
-          id: 'cylinders-animated',
-          data: data,
-          diskResolution: 12,
-          radius: 400,
-          extruded: true,
-          pickable: true,
-          getPosition: d => [d.lon, d.lat],
-          getElevation: d => d.count * 2000,
-          getFillColor: [255, 0, 0, 200],
-          transitions: {
-            getElevation: {
-              duration: 2000, // 2秒間のアニメーション
-              easing: t => t * t * (3.0 - 2.0 * t) // スムーズなease-in-out
-            }
-          }
+        elevationScale = 1; // 高さを最終値に
+        cylinderLayer.setProps({
+          getElevation: d => d.count * 2000 * elevationScale
         });
-
         deckOverlay.setProps({
-          layers: [boundaryLayer, nagoyaLayer, animatedCylinderLayer]
+          layers: [boundaryLayer, nagoyaLayer, cylinderLayer]
         });
       }, 500);
     });
