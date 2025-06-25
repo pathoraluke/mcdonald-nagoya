@@ -2,25 +2,45 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>3D円柱グラフ＋愛知県境界 (DeckGL版)</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>3D 円柱ニョキニョキ (deck.gl + MapLibre)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link
+    href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css"
+    rel="stylesheet"
+  />
   <style>
-    html, body { margin:0; padding:0; height:100%; }
-    #map { position:absolute; top:0; left:0; right:0; bottom:0; }
+    html,body,#map {
+      margin:0;
+      padding:0;
+      height:100%;
+      background:#fff;
+    }
+    /* deck.gl が自動で作るキャンバス */
+    .deck-canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none; /* map のイベントを邪魔しない */
+    }
   </style>
-  <!-- MapLibre GL CSS (背景表示用) -->
-  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet"/>
 </head>
 <body>
   <div id="map"></div>
 
-  <!-- 必要スクリプト -->
+  <!-- 1. MapLibre GL JS -->
   <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+  <!-- 2. alias so deck.gl can find it as “mapboxgl” -->
+  <script>window.mapboxgl = maplibregl;</script>
+  <!-- 3. deck.gl core -->
   <script src="https://unpkg.com/deck.gl@8.9.4/dist.min.js"></script>
+  <!-- 4. deck.gl の Mapbox adapter (works with our alias) -->
+  <script src="https://unpkg.com/@deck.gl/mapbox@8.9.4/dist.min.js"></script>
+  <!-- 5. あなたのデータ -->
   <script src="data.js"></script>
 
   <script>
-    // 1) MapLibre 背景地図
+    // 6. MapLibre の地図を作る
     const map = new maplibregl.Map({
       container: 'map',
       style: 'https://demotiles.maplibre.org/style.json',
@@ -28,63 +48,55 @@
       zoom: 11,
       pitch: 50,
       bearing: -20,
-      interactive: false  // DeckGL 側でコントローラ有効化するので地図は静的に
+      attributionControl: false
     });
 
-    // 2) GeoJSON レイヤー（境界）
-    const boundaryLayer = new deck.GeoJsonLayer({
-      id: 'aichi-boundary',
-      data: 'Aichi.geojson',
-      stroked: true,
-      filled: false,
-      lineWidthMinPixels: 2,
-      getLineColor: [50,50,50,200]
-    });
-
-    // 3) 初期高さ 0 の円柱レイヤー with transitions
-    const cylinderLayer = new deck.ColumnLayer({
-      id: 'cylinders',
-      data,
-      diskResolution: 12,
-      radius: 200,
-      extruded: true,
-      pickable: true,
-      getPosition: d => [d.lon, d.lat],
-      getElevation: d => 0,            // 初めは 0
-      getFillColor: [255,0,0,200],
-      transitions: {
-        getElevation: { duration: 1000 }
-      }
-    });
-
-    // 4) Deck インスタンスの生成
-    const deckgl = new deck.Deck({
-      canvas: 'deck-canvas',      // DeckGL 用のキャンバス（自動作成）
-      initialViewState: {
-        longitude: 136.9066,
-        latitude:  35.1815,
-        zoom:      11,
-        pitch:     50,
-        bearing:  -20
-      },
-      controller: true,            // ズーム・パン・傾き・回転を有効に
-      layers: [ boundaryLayer, cylinderLayer ],
-      onBeforeRender: () => {
-        // MapLibre 地図と同期させる
-        const vs = deckgl.viewManager.getViewports()[0];
-        map.jumpTo({ center: vs.center, zoom: vs.zoom, bearing: vs.bearing, pitch: vs.pitch });
-      }
-    });
-
-    // 5) 高さを更新して transitions を発火
-    setTimeout(() => {
-      deckgl.setProps({
-        layers: [
-          boundaryLayer,
-          cylinderLayer.clone({ getElevation: d => d.count * 1000 })
-        ]
+    map.on('load', () => {
+      // 7. 背景の県境レイヤー
+      const boundaryLayer = new deck.GeoJsonLayer({
+        id: 'aichi-boundary',
+        data: 'Aichi.geojson',
+        stroked: true,
+        filled: false,
+        lineWidthMinPixels: 2,
+        getLineColor: [50,50,50,200]
       });
-    }, 300);
+
+      // 8. 初期 getElevation:0 の円柱レイヤー (transitions を有効に)
+      const cylinderLayer = new deck.ColumnLayer({
+        id: 'cylinders',
+        data,
+        diskResolution: 12,
+        radius: 200,
+        extruded: true,
+        pickable: true,
+        getPosition: d => [d.lon, d.lat],
+        getElevation: d => 0,                // 初期は地面
+        getFillColor: [255,0,0,200],
+        transitions: {
+          getElevation: { duration: 1000 }   // 1秒で補間
+        }
+      });
+
+      // 9. MapboxOverlay を地図に乗せる
+      const overlay = new deck.MapboxOverlay({
+        layers: [ boundaryLayer, cylinderLayer ]
+      });
+      map.addControl(overlay);
+
+      // 10. ワンタイムで高さを変えて transitions を走らせる
+      setTimeout(() => {
+        overlay.setProps({
+          layers: [
+            boundaryLayer,
+            // 同じ id のレイヤーを clone() して getElevation を更新
+            cylinderLayer.clone({
+              getElevation: d => d.count * 1000
+            })
+          ]
+        });
+      }, 300);
+    });
   </script>
 </body>
 </html>
