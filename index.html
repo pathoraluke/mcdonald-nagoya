@@ -3,20 +3,19 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <title>名古屋マクドナルド棒グラフ with OSM</title>
+  <title>名古屋マクドナルド棒グラフ with OSM (Fixed)</title>
   <style>
     html, body, #map {{
       margin: 0;
       padding: 0;
       width: 100%;
       height: 100%;
-      overflow: hidden;
     }}
-    canvas {{
+    #three-canvas {{
       position: absolute;
       top: 0;
       left: 0;
-      z-index: 400;
+      z-index: 1000;
       pointer-events: none;
     }}
   </style>
@@ -24,8 +23,8 @@
 </head>
 <body>
   <div id="map"></div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r148/three.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r148/three.min.js"></script>
   <script src="data.js"></script>
   <script>
     const map = L.map('map').setView([35.15, 136.9], 12);
@@ -36,41 +35,55 @@
 
     const renderer = new THREE.WebGLRenderer({ alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.domElement.style.position = 'absolute';
-    renderer.domElement.style.top = 0;
-    renderer.domElement.style.left = 0;
+    renderer.domElement.id = "three-canvas";
     document.body.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 1, 1000);
-    camera.position.z = 400;
+    const camera = new THREE.OrthographicCamera(
+      window.innerWidth / -2, window.innerWidth / 2,
+      window.innerHeight / 2, window.innerHeight / -2,
+      1, 1000
+    );
+    camera.position.z = 500;
 
     const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(0, 0, 500).normalize();
+    light.position.set(0, 0, 500);
     scene.add(light);
+    scene.add(new THREE.AmbientLight(0x888888));
 
     const bars = [];
 
-    function latLngToScenePoint(lat, lng) {{
+    function projectLatLng(lat, lng) {{
       const point = map.latLngToContainerPoint([lat, lng]);
       const x = point.x - window.innerWidth / 2;
       const y = - (point.y - window.innerHeight / 2);
       return new THREE.Vector3(x, y, 0);
     }}
 
-    data.forEach(d => {{
-      const position = latLngToScenePoint(d.lat, d.lon);
-      const geometry = new THREE.BoxGeometry(10, 0.1, 10);
-      const material = new THREE.MeshPhongMaterial({ color: 0xff6600 });
-      const cube = new THREE.Mesh(geometry, material);
-      cube.position.copy(position);
-      cube.position.z = 0.05;
-      scene.add(cube);
-      bars.push({ mesh: cube, target: d.value * 10 });
-    }});
+    function drawBars() {{
+      data.forEach(d => {{
+        const pos = projectLatLng(d.lat, d.lon);
+        const geometry = new THREE.BoxGeometry(10, 10, 0.1);
+        const material = new THREE.MeshPhongMaterial({ color: 0xff6600 });
+        const cube = new THREE.Mesh(geometry, material);
+        cube.position.set(pos.x, pos.y, 0.05);
+        scene.add(cube);
+        bars.push({ mesh: cube, target: d.value * 10 });
+      }});
+    }}
+
+    function updateBarPositions() {{
+      bars.forEach((bar, i) => {{
+        const d = data[i];
+        const pos = projectLatLng(d.lat, d.lon);
+        bar.mesh.position.x = pos.x;
+        bar.mesh.position.y = pos.y;
+      }});
+    }}
 
     function animate() {{
       requestAnimationFrame(animate);
+      updateBarPositions();
       bars.forEach(bar => {{
         if (bar.mesh.scale.z < bar.target) {{
           bar.mesh.scale.z += 0.2;
@@ -80,7 +93,17 @@
       renderer.render(scene, camera);
     }}
 
+    drawBars();
     animate();
+
+    window.addEventListener('resize', () => {{
+      camera.left = window.innerWidth / -2;
+      camera.right = window.innerWidth / 2;
+      camera.top = window.innerHeight / 2;
+      camera.bottom = window.innerHeight / -2;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }});
   </script>
 </body>
 </html>
