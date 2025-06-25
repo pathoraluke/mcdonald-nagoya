@@ -1,53 +1,51 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>名古屋マクドナルド地図</title>
+  <meta charset="UTF-8">
+  <title>名古屋マクドナルド - 白地図</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
   <style>
-    html, body, #map { height: 100%; margin: 0; padding: 0; }
-    .bar {
-      background: rgba(255, 100, 100, 0.7);
-      border-radius: 4px;
-      transform-origin: bottom;
-      transition: height 1.5s ease-out;
-      width: 12px;
-    }
+    html, body, #map { height:100%; margin:0; padding:0; }
+    .bar { background: rgba(0,128,255,0.8); width:12px; transform-origin: bottom; transition: height 1s ease-out; }
   </style>
 </head>
 <body>
 <div id="map"></div>
-
 <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
 <script src="data.js"></script>
 <script>
-  const map = L.map('map', {
-    center: [35.1815, 136.9066],
-    zoom: 12
-  });
+// Initialize map without tile layer
+const map = L.map('map', {
+  center: [35.1815,136.9066],
+  zoom: 11,
+  zoomControl: false,
+  attributionControl: false
+});
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap contributors & CartoDB'
-  }).addTo(map);
+// Load Aichi GeoJSON (boundary only)
+fetch('aichi.geojson')
+  .then(res => res.json())
+  .then(geojson => {
+    L.geoJSON(geojson, {
+      style: { color: '#333', weight: 1, fill: false }
+    }).addTo(map);
 
-  data.forEach((item, i) => {
-    const height = item.count * 10;
-    const div = L.divIcon({
-      className: '',
-      html: `<div class="bar" style="height:0px;"></div>`,
-      iconSize: [12, 0],
-      iconAnchor: [6, 0]
+    // Add bars
+    data.forEach((d,i) => {
+      const height = d.count * 10;
+      const icon = L.divIcon({
+        html: '<div class="bar" style="height:0px;"></div>',
+        iconSize: [12,0],
+        iconAnchor: [6,0]
+      });
+      const m = L.marker([d.lat, d.lon], { icon }).addTo(map);
+      setTimeout(() => {
+        m.getElement().firstChild.style.height = height + 'px';
+      }, 100 + i*100);
     });
-
-    const marker = L.marker([item.lat, item.lon], { icon: div }).addTo(map);
-
-    setTimeout(() => {
-      const el = marker.getElement().querySelector('.bar');
-      el.style.height = height + 'px';
-    }, 100 + i * 100);
-  });
+  })
+  .catch(err => console.error('Failed to load aichi.geojson', err));
 </script>
 </body>
 </html>
