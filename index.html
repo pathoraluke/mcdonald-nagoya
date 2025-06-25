@@ -81,9 +81,8 @@
         lineWidthMinPixels: 1
       });
 
-      // 円柱レイヤー（高さは動的に更新）
-      let elevationScale = 0; // 初期高さスケール
-      const cylinderLayer = new deck.ColumnLayer({
+      // 円柱レイヤー（初期状態）
+      let cylinderLayer = new deck.ColumnLayer({
         id: 'cylinders',
         data: data,
         diskResolution: 12,
@@ -91,10 +90,11 @@
         extruded: true,
         pickable: true,
         getPosition: d => [d.lon, d.lat],
-        getElevation: d => d.count * 2000 * elevationScale,
+        getElevation: d => d.count * 2000,
         getFillColor: [255, 0, 0, 200],
+        elevationScale: 0, // 初期は高さ0
         transitions: {
-          getElevation: {
+          elevationScale: {
             duration: 2000, // 2秒間のアニメーション
             easing: t => t * t * (3.0 - 2.0 * t) // スムーズなease-in-out
           }
@@ -109,19 +109,42 @@
       // アニメーション開始
       setTimeout(() => {
         console.log('Starting animation...');
-        elevationScale = 1; // 高さを最終値に
-        cylinderLayer.setProps({
-          getElevation: d => d.count * 2000 * elevationScale
+        console.log('Data sample:', data[0]);
+        // 新しいレイヤーを作成してelevationScaleを1に
+        cylinderLayer = new deck.ColumnLayer({
+          id: 'cylinders',
+          data: data,
+          diskResolution: 12,
+          radius: 400,
+          extruded: true,
+          pickable: true,
+          getPosition: d => [d.lon, d.lat],
+          getElevation: d => d.count * 2000,
+          getFillColor: [255, 0, 0, 200],
+          elevationScale: 1, // 最終高さに
+          transitions: {
+            elevationScale: {
+              duration: 2000,
+              easing: t => t * t * (3.0 - 2.0 * t)
+            }
+          }
         });
         deckOverlay.setProps({
           layers: [boundaryLayer, nagoyaLayer, cylinderLayer]
         });
-      }, 500);
+      }, 1000);
     });
 
     // エラーハンドリング
     map.on('error', (e) => {
       console.error('Map error:', e);
+    });
+
+    // データ読み込みエラーの確認
+    window.addEventListener('error', (e) => {
+      if (e.message.includes('data.js') || e.message.includes('Aichi.geojson') || e.message.includes('Nagoyaward.geojson')) {
+        console.error('File loading error:', e);
+      }
     });
   </script>
 </body>
