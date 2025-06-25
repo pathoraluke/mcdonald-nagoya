@@ -22,13 +22,12 @@
 
 <div id="map"></div>
 
-<!-- ライブラリ読み込み -->
 <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 <script src="data.js"></script>
 
 <script>
-// 1) 地図初期化（タイルなしの白地図）
+// 地図初期化（白背景）
 const map = L.map('map', {
   center: [35.1815, 136.9066],
   zoom: 11,
@@ -36,35 +35,39 @@ const map = L.map('map', {
   attributionControl: false
 });
 
-// 2) 市町村界 GeoJSON を読み込み、すべてを MultiPolygon にまとめる
+// 市町村界（単純化済み）を読み込み、全座標をまとめて MultiPolygon を作成
 fetch('aichi_simplified.geojson')
   .then(res => res.json())
   .then(geojson => {
-    // 各フィーチャの座標配列を集める
-    const multiCoords = geojson.features
-      .filter(f => f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'))
-      .map(f => {
-        // Polygon は [ [ ... ] ], MultiPolygon は [ [ [...], ...] ]
+    // Polygon／MultiPolygon のみ取り出し、座標を集約
+    const coords = geojson.features
+      .filter(f => {
+        const t = f.geometry && f.geometry.type;
+        return t === 'Polygon' || t === 'MultiPolygon';
+      })
+      .flatMap(f => {
         return f.geometry.type === 'Polygon'
           ? [f.geometry.coordinates]
           : f.geometry.coordinates;
-      })
-      .flat();
-    // FeatureCollection ではなく単一の MultiPolygon Feature を作成
-    const multiPoly = turf.multiPolygon(multiCoords, {});
-    // 県外周だけを描画
-    L.geoJSON(multiPoly, {
+      });
+    // 一つの MultiPolygon にまとめる
+    const mp = turf.multiPolygon(coords);
+    // 県外周だけ描画
+    L.geoJSON(mp, {
       style: { color: '#333', weight: 2, fill: false }
     }).addTo(map);
+
+    // 続いて名古屋市区界を読み込む
     return fetch('nagoya_wards.geojson');
   })
   .then(res => res.json())
   .then(geojson => {
-    // 3) 名古屋区界を一重で重ねる
+    // 区界を一重で重ねる
     L.geoJSON(geojson, {
       style: { color: '#666', weight: 1.5, fill: false }
     }).addTo(map);
-    // 4) 棒グラフアニメーションを表示
+
+    // 最後に棒グラフをアニメーション表示
     data.forEach((d, i) => {
       const h = d.count * 10;
       const icon = L.divIcon({
@@ -78,7 +81,7 @@ fetch('aichi_simplified.geojson')
       }, 200 + i * 50);
     });
   })
-  .catch(err => console.error('GeoJSON読み込みエラー:', err));
+  .catch(err => console.error('GeoJSON 読み込みエラー:', err));
 </script>
 
 </body>
