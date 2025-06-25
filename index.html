@@ -16,15 +16,13 @@
 </head>
 <body>
   <div id="map"></div>
-  
-  <!-- MapLibre GL JS -->
+
   <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-  
-  <!-- Deck.gl (より安定したバージョン) -->
+
   <script src="https://unpkg.com/deck.gl@8.8.27/dist.min.js"></script>
-  
+
   <script src="data.js"></script>
-  
+
   <script>
     // MapLibre地図の初期化
     const map = new maplibregl.Map({
@@ -50,17 +48,17 @@
     map.on('load', () => {
       console.log('Map loaded successfully');
       console.log('Data points:', data.length);
-      
+
       // Deck.glオーバーレイの作成
       const deckOverlay = new deck.MapboxOverlay({
-        interleaved: false,
+        interleaved: true, // パフォーマンスのためtrueを推奨
         layers: []
       });
 
       // 地図にオーバーレイを追加
       map.addControl(deckOverlay);
 
-      // 境界レイヤー
+      // --- GeoJSONレイヤー（変更なし） ---
       const boundaryLayer = new deck.GeoJsonLayer({
         id: 'aichi-boundary',
         data: 'Aichi.geojson',
@@ -70,7 +68,6 @@
         getLineColor: [50, 50, 50, 200]
       });
 
-      // 名古屋区レイヤー
       const nagoyaLayer = new deck.GeoJsonLayer({
         id: 'nagoya-wards',
         data: 'Nagoyaward.geojson',
@@ -81,56 +78,66 @@
         lineWidthMinPixels: 1
       });
 
-      // 初期円柱レイヤー（高さ0）
+      // --- [ここからが修正箇所] ---
+
+      // 1. 円柱レイヤーのIDを統一する（例: 'cylinders'）
+      const CYLINDER_LAYER_ID = 'cylinders';
+
+      // 2. 初期状態（高さ0）の円柱レイヤーを定義
       const initialCylinderLayer = new deck.ColumnLayer({
-        id: 'cylinders-initial',
+        id: CYLINDER_LAYER_ID, // 統一したIDを使用
         data: data,
         diskResolution: 12,
         radius: 400,
         extruded: true,
         pickable: true,
         getPosition: d => [d.lon, d.lat],
-        getElevation: () => 0,
+        getElevation: () => 0, // まずは高さを0に
         getFillColor: [255, 0, 0, 200],
+        // アニメーション（トランジション）の定義
         transitions: {
           getElevation: {
-            duration: 2000, // 2秒間のアニメーション
-            easing: t => t * t * (3.0 - 2.0 * t) // スムーズなease-in-out
+            duration: 2000,
+            easing: t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t // easeInOutQuad
           }
         }
       });
 
-      // 初期レイヤーを設定
+      // 初期レイヤーを設定して描画
       deckOverlay.setProps({
         layers: [boundaryLayer, nagoyaLayer, initialCylinderLayer]
       });
 
-      // アニメーション開始
+      // 3. 少し待ってからアニメーションを開始
       setTimeout(() => {
         console.log('Starting animation...');
-        
+
+        // 4. 同じIDで、高さを更新した新しいレイヤーオブジェクトを作成
         const animatedCylinderLayer = new deck.ColumnLayer({
-          id: 'cylinders-animated',
+          id: CYLINDER_LAYER_ID, // ★★★ 必ず同じIDを使う ★★★
           data: data,
           diskResolution: 12,
           radius: 400,
           extruded: true,
           pickable: true,
           getPosition: d => [d.lon, d.lat],
-          getElevation: d => d.count * 2000,
+          getElevation: d => d.count * 2000, // 最終的な高さを設定
           getFillColor: [255, 0, 0, 200],
+          // トランジション設定も引き継ぐ
           transitions: {
             getElevation: {
-              duration: 2000, // 2秒間のアニメーション
-              easing: t => t * t * (3.0 - 2.0 * t) // スムーズなease-in-out
+              duration: 2000,
+              easing: t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
             }
           }
         });
 
+        // レイヤーを更新すると、Deck.glが差分を検知してアニメーションを実行
         deckOverlay.setProps({
           layers: [boundaryLayer, nagoyaLayer, animatedCylinderLayer]
         });
-      }, 500);
+
+      }, 500); // 500ミリ秒後にアニメーション開始
     });
 
     // エラーハンドリング
