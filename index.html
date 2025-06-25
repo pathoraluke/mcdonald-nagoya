@@ -1,95 +1,76 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>3D 円柱ニョキニョキ (deck.gl + MapLibre)</title>
+  <meta charset="UTF-8" />
+  <title>愛知県マック棒グラフ＆名古屋区上塗り</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-
-  <!-- ① MapLibre GL の CSS（★これが必須） -->
+  <!-- Leaflet CSS -->
   <link
-    href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css"
     rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
   />
-
   <style>
-    html, body, #map {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      background: #fff;
-    }
+    html, body, #map { height:100%; margin:0; padding:0; }
+    .bar { /* 前回の赤い棒グラフスタイル */ }
   </style>
 </head>
 <body>
   <div id="map"></div>
 
-  <!-- ② MapLibre GL JS -->
-  <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
-
-  <!-- ③ deck.gl は mapboxgl エイリアスを必要とするので -->
-  <script>window.mapboxgl = maplibregl;</script>
-
-  <!-- ④ deck.gl 本体 -->
-  <script src="https://unpkg.com/deck.gl@8.9.4/dist.min.js"></script>
-
-  <!-- ⑤ データ -->
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+  <!-- 棒グラフ用データ -->
   <script src="data.js"></script>
 
   <script>
-    // １．deck.Deck を初期化
-    const deckgl = new deck.Deck({
-      container: 'map',
-      // mapStyle に maplibre のデフォルトを渡せば自動で背景地図を読み込みます
-      mapStyle: 'https://demotiles.maplibre.org/style.json',
-      initialViewState: {
-        longitude: 136.9066,
-        latitude:  35.1815,
-        zoom:      11,
-        pitch:     50,
-        bearing:  -20
-      },
-      controller: true,
-      layers: [
-        // ■県境
-        new deck.GeoJsonLayer({
-          id: 'aichi-boundary',
-          data: 'Aichi.geojson',      // ★大文字・小文字を要確認！
-          stroked: true,
-          filled: false,
-          lineWidthMinPixels: 2,
-          getLineColor: [50, 50, 50, 200]
-        }),
-        // ■円柱（初期高さ 0）
-        new deck.ColumnLayer({
-          id: 'cylinders',
-          data,                       // data.js で定義したグローバル変数
-          diskResolution: 12,
-          radius: 200,
-          extruded: true,
-          pickable: true,
-          getPosition: d => [d.lon, d.lat],
-          getElevation: () => 0,      // 初回は高さ０
-          getFillColor: [255, 0, 0, 200],
-          transitions: {
-            getElevation: { duration: 1000 }
-          }
-        })
-      ]
+    const map = L.map('map', {
+      center: [35.1815, 136.9066],
+      zoom: 11,
+      zoomControl: false,
+      attributionControl: false
     });
 
-    // ２．少し待ってから高さを更新してニョキニョキアニメ
-    setTimeout(() => {
-      deckgl.setProps({
-        layers: deckgl.props.layers.map(layer => {
-          if (layer.id === 'cylinders') {
-            return layer.clone({
-              getElevation: d => d.count * 1000  // 件数×1km
-            });
-          }
-          return layer;
-        })
+    // ① 愛知県境界（線のみ）
+    fetch('Aichi.geojson')
+      .then(r=>r.json())
+      .then(geojson=>{
+        L.geoJSON(geojson, {
+          style: { color: '#333', weight: 2, fill: false }
+        }).addTo(map);
       });
-    }, 300);
+
+    // ② 名古屋市区界を薄い黄色で上塗り
+    fetch('Nagoyaward.geojson')
+      .then(r=>r.json())
+      .then(geojson=>{
+        L.geoJSON(geojson, {
+          style: {
+            color: '#333',            // 境界線はグレー
+            weight: 1,
+            fillColor: '#ffffb2',     // 薄い黄色
+            fillOpacity: 0.5
+          }
+        }).addTo(map);
+      });
+
+    // ③ 赤い棒グラフを描画（前回コード）
+    function drawBars() {
+      data.forEach((d,i) => {
+        const h = d.count * 15;
+        const icon = L.divIcon({
+          className:'',
+          html:'<div class="bar" style="width:3px;height:0;background:red;transform-origin:bottom;transition:height 1s;"></div>',
+          iconSize:[3,h],
+          iconAnchor:[1,h]
+        });
+        const m = L.marker([d.lat,d.lon],{icon}).addTo(map);
+        setTimeout(()=>{
+          m.getElement().querySelector('.bar').style.height = h+'px';
+        },200+i*100);
+      });
+    }
+    // wait for the map tiles & geojsons
+    setTimeout(drawBars, 500);
   </script>
 </body>
 </html>
