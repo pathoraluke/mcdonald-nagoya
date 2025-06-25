@@ -39,9 +39,9 @@ fetch('aichi.geojson')
         iconSize: [12,0],
         iconAnchor: [6,0]
       });
-      const m = L.marker([d.lat, d.lon], { icon }).addTo(map);
+      const marker = L.marker([d.lat, d.lon], { icon }).addTo(map);
       setTimeout(() => {
-        m.getElement().firstChild.style.height = height + 'px';
+        marker.getElement().firstChild.style.height = height + 'px';
       }, 100 + i*100);
     });
   })
