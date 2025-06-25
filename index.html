@@ -1,57 +1,53 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>名古屋マクドナルド - 3D棒グラフ</title>
+  <meta charset="UTF-8" />
+  <title>名古屋マクドナルド地図</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    html, body, #map {{
-      height: 100%;
-      margin: 0;
-      padding: 0;
-    }}
-    .bar {{
-      position: absolute;
-      background-color: rgba(0, 128, 255, 0.8);
-      width: 10px;
-      transform-origin: bottom center;
-      transition: height 1s ease-out;
-    }}
-  </style>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <style>
+    html, body, #map { height: 100%; margin: 0; padding: 0; }
+    .bar {
+      background: rgba(255, 100, 100, 0.7);
+      border-radius: 4px;
+      transform-origin: bottom;
+      transition: height 1.5s ease-out;
+      width: 12px;
+    }
+  </style>
 </head>
 <body>
-  <div id="map"></div>
-  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-  <script src="data.js"></script>
-  <script>
-    const map = L.map('map', {{
-      center: [35.1681, 136.9066],
-      zoom: 13,
-      zoomControl: true,
-    }});
+<div id="map"></div>
 
-    // 白地図タイル（CartoDB Positron）
-    L.tileLayer('https://{{s}}.basemaps.cartocdn.com/light_all/{{z}}/{{x}}/{{y}}{{r}}.png', {{
-      attribution: '&copy; OpenStreetMap contributors & CartoDB',
-    }}).addTo(map);
+<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+<script src="data.js"></script>
+<script>
+  const map = L.map('map', {
+    center: [35.1815, 136.9066],
+    zoom: 12
+  });
 
-    // 各区に棒を描画（アニメーション付き）
-    data.forEach(d => {{
-      const height = d.count * 5;
-      const div = L.divIcon({{
-        className: 'bar',
-        html: `<div style="height:0px"></div>`,
-        iconSize: [10, 0],
-        iconAnchor: [5, 0]
-      }});
-      const marker = L.marker([d.lat, d.lon], {{ icon: div }}).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap contributors & CartoDB'
+  }).addTo(map);
 
-      setTimeout(() => {{
-        const el = marker.getElement().firstChild;
-        el.style.height = height + 'px';
-      }}, 500);
-    }});
-  </script>
+  data.forEach((item, i) => {
+    const height = item.count * 10;
+    const div = L.divIcon({
+      className: '',
+      html: `<div class="bar" style="height:0px;"></div>`,
+      iconSize: [12, 0],
+      iconAnchor: [6, 0]
+    });
+
+    const marker = L.marker([item.lat, item.lon], { icon: div }).addTo(map);
+
+    setTimeout(() => {
+      const el = marker.getElement().querySelector('.bar');
+      el.style.height = height + 'px';
+    }, 100 + i * 100);
+  });
+</script>
 </body>
 </html>
