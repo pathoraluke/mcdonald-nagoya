@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>愛知県境界マップ</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <title>愛知県マック棒グラフ（赤い線）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <!-- Leaflet CSS -->
   <link
     rel="stylesheet"
@@ -11,52 +11,35 @@
   />
   <style>
     html, body, #map { height:100%; margin:0; padding:0; }
+    /* 棒グラフのアイコン */
+    .bar {
+      width: 3px;               /* 線の太さ */
+      height: 0px;              /* 初期は地面（高さ０） */
+      background: red;          /* 赤い線 */
+      transform-origin: bottom; /* 下端を基点に伸びる */
+      transition: height 1s ease-out;
+    }
   </style>
 </head>
 <body>
+  <div id="map"></div>
 
-<div id="map"></div>
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+  <!-- ご用意いただいたデータ -->
+  <script src="data.js"></script>
 
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-
-<script>
-  // 地図初期化
-  const map = L.map('map', {
-    center: [35.1815, 136.9066],  // 名古屋市中心付近
-    zoom: 10,
-    zoomControl: true,
-    attributionControl: false
-  });
-
-  // タイルレイヤ無し（白地図）
-  // もし背景に OpenStreetMap を入れたい場合は以下を有効化
-  // L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  //   attribution: '&copy; OpenStreetMap contributors'
-  // }).addTo(map);
-
-  // aichi_outline.geojson を読み込んで境界線だけ描画
-  fetch('aichi_outline.geojson')
-    .then(res => {
-      if (!res.ok) throw new Error('aichi_outline.geojson が見つかりません');
-      return res.json();
-    })
-    .then(geojson => {
-      L.geoJSON(geojson, {
-        style: {
-          color: '#333',  // 線色
-          weight: 2,      // 線の太さ
-          fill:     false // 塗りつぶしなし
-        }
-      }).addTo(map);
-      // 全体をフィット
-      map.fitBounds(L.geoJSON(geojson).getBounds());
-    })
-    .catch(err => {
-      console.error(err);
-      alert(err.message);
+  <script>
+    // 1) 地図初期化（白地図：タイル無し）
+    const map = L.map('map', {
+      center: [35.1815, 136.9066],
+      zoom: 11,
+      zoomControl: false,
+      attributionControl: false
     });
-</script>
 
-</body>
-</html>
+    // 2) aichi.geojson を読み込んで境界線のみ描画
+    fetch('aichi.geojson')
+      .then(r => r.json())
+      .then(geojson => {
+        L.geoJS
