@@ -5,7 +5,7 @@
   <title>3D 円柱ニョキニョキ (deck.gl + MapLibre)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-  <!-- ① MapLibre GL CSS（これがないと地図タイルが見えません） -->
+  <!-- ① MapLibre GL の CSS（★これが必須） -->
   <link
     href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css"
     rel="stylesheet"
@@ -25,17 +25,21 @@
 
   <!-- ② MapLibre GL JS -->
   <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
-  <!-- deck.gl は Mapbox Adapter 名義で MapLibre を参照します -->
+
+  <!-- ③ deck.gl は mapboxgl エイリアスを必要とするので -->
   <script>window.mapboxgl = maplibregl;</script>
-  <!-- ③ deck.gl 本体 -->
+
+  <!-- ④ deck.gl 本体 -->
   <script src="https://unpkg.com/deck.gl@8.9.4/dist.min.js"></script>
-  <!-- ④ あなたのデータ -->
+
+  <!-- ⑤ データ -->
   <script src="data.js"></script>
 
   <script>
-    // ─── １．DeckGL 初期化 ────────────────────────────
+    // １．deck.Deck を初期化
     const deckgl = new deck.Deck({
       container: 'map',
+      // mapStyle に maplibre のデフォルトを渡せば自動で背景地図を読み込みます
       mapStyle: 'https://demotiles.maplibre.org/style.json',
       initialViewState: {
         longitude: 136.9066,
@@ -46,25 +50,25 @@
       },
       controller: true,
       layers: [
-        // 境界
+        // ■県境
         new deck.GeoJsonLayer({
           id: 'aichi-boundary',
-          data: 'Aichi.geojson',
+          data: 'Aichi.geojson',      // ★大文字・小文字を要確認！
           stroked: true,
           filled: false,
           lineWidthMinPixels: 2,
           getLineColor: [50, 50, 50, 200]
         }),
-        // 初期高さ0の円柱
+        // ■円柱（初期高さ 0）
         new deck.ColumnLayer({
           id: 'cylinders',
-          data,
+          data,                       // data.js で定義したグローバル変数
           diskResolution: 12,
           radius: 200,
           extruded: true,
           pickable: true,
           getPosition: d => [d.lon, d.lat],
-          getElevation: () => 0,
+          getElevation: () => 0,      // 初回は高さ０
           getFillColor: [255, 0, 0, 200],
           transitions: {
             getElevation: { duration: 1000 }
@@ -73,13 +77,13 @@
       ]
     });
 
-    // ─── ２．少し待ってから「高さ」を差し替えてニョキニョキ動かす ─────────
+    // ２．少し待ってから高さを更新してニョキニョキアニメ
     setTimeout(() => {
       deckgl.setProps({
         layers: deckgl.props.layers.map(layer => {
           if (layer.id === 'cylinders') {
             return layer.clone({
-              getElevation: d => d.count * 1000
+              getElevation: d => d.count * 1000  // 件数×1km
             });
           }
           return layer;
