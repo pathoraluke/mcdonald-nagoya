@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>3D円柱グラフ＋愛知県境界 (アニメーション付き)</title>
+  <title>3D円柱グラフ＋愛知県境界 (アニメーション付き・高さ強化)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <!-- MapLibre GL CSS -->
   <link
@@ -61,13 +61,13 @@
         extruded: true,
         pickable: true,
         getPosition: d => [d.lon, d.lat],
-        getElevation: d => d.count * 50,
+        // ここを *100 にして高さを調整
+        getElevation: d => d.count * 200,
         getFillColor: [255, 0, 0, 200],
-        // ここで高さをアニメーション
         transitions: {
           getElevation: {
             duration: 1000,
-            easing: t => t*t*(3 - 2*t)  // easeInOut
+            easing: t => t * t * (3 - 2 * t)
           }
         }
       });
