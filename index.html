@@ -129,25 +129,28 @@
         // 伸びきった後3秒待機してリセット
         setTimeout(() => {
           console.log('Pausing for 3 seconds...');
-          cylinderLayer = new deck.ColumnLayer({
-            id: 'cylinders',
-            data: data,
-            diskResolution: 12,
-            radius: 400,
-            extruded: true,
-            pickable: true,
-            getPosition: d => [d.lon, d.lat],
-            getElevation: d => d.count * 2000,
-            getFillColor: [255, 0, 0, 200],
-            elevationScale: 0 // 高さを0に戻す
-          });
-          deckOverlay.setProps({
-            layers: [boundaryLayer, nagoyaLayer, cylinderLayer]
-          });
+          // 3秒停止中は現在の状態を維持
+          setTimeout(() => {
+            cylinderLayer = new deck.ColumnLayer({
+              id: 'cylinders',
+              data: data,
+              diskResolution: 12,
+              radius: 400,
+              extruded: true,
+              pickable: true,
+              getPosition: d => [d.lon, d.lat],
+              getElevation: d => d.count * 2000,
+              getFillColor: [255, 0, 0, 200],
+              elevationScale: 0 // 高さを0に戻す
+            });
+            deckOverlay.setProps({
+              layers: [boundaryLayer, nagoyaLayer, cylinderLayer]
+            });
 
-          // 次のアニメーション開始まで2秒待機（合計3秒の停止時間）
-          setTimeout(startAnimation, 2000);
-        }, 2000); // 2秒アニメーション後すぐ次の処理
+            // 次のアニメーション開始
+            startAnimation();
+          }, 3000); // 3秒待機
+        }, 2000); // 2秒アニメーション後
       }
 
       // 初回アニメーション開始（1秒遅延）
