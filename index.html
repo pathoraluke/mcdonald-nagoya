@@ -106,11 +106,11 @@
         layers: [boundaryLayer, nagoyaLayer, cylinderLayer]
       });
 
-      // アニメーション開始
-      setTimeout(() => {
+      // アニメーションループ関数
+      function startAnimation() {
         console.log('Starting animation...');
         console.log('Data sample:', data[0]);
-        // 新しいレイヤーを作成してelevationScaleを1に
+        // 円柱を伸びるアニメーション
         cylinderLayer = new deck.ColumnLayer({
           id: 'cylinders',
           data: data,
@@ -132,7 +132,37 @@
         deckOverlay.setProps({
           layers: [boundaryLayer, nagoyaLayer, cylinderLayer]
         });
-      }, 1000);
+
+        // 伸びきった後3秒待機してリセット
+        setTimeout(() => {
+          cylinderLayer = new deck.ColumnLayer({
+            id: 'cylinders',
+            data: data,
+            diskResolution: 12,
+            radius: 400,
+            extruded: true,
+            pickable: true,
+            getPosition: d => [d.lon, d.lat],
+            getElevation: d => d.count * 2000,
+            getFillColor: [255, 0, 0, 200],
+            elevationScale: 0, // 高さを0に戻す
+            transitions: {
+              elevationScale: {
+                duration: 0 // 即座にリセット
+              }
+            }
+          });
+          deckOverlay.setProps({
+            layers: [boundaryLayer, nagoyaLayer, cylinderLayer]
+          });
+
+          // 次のアニメーション開始まで1秒待機（合計3秒の停止時間）
+          setTimeout(startAnimation, 1000); // 3秒 - 2秒（トランジション時間）
+        }, 2000 + 2000); // 伸びるアニメーション（2秒）+ 1秒のバッファ
+      }
+
+      // 初回アニメーション開始（1秒遅延）
+      setTimeout(startAnimation, 1000);
     });
 
     // エラーハンドリング
