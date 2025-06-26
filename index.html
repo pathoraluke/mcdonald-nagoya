@@ -92,13 +92,7 @@
         getPosition: d => [d.lon, d.lat],
         getElevation: d => d.count * 2000,
         getFillColor: [255, 0, 0, 200],
-        elevationScale: 0, // 初期は高さ0
-        transitions: {
-          elevationScale: {
-            duration: 2000, // 2秒間のアニメーション
-            easing: t => t * t * (3.0 - 2.0 * t) // スムーズなease-in-out
-          }
-        }
+        elevationScale: 0 // 初期は高さ0
       });
 
       // 初期レイヤーを設定
@@ -108,8 +102,7 @@
 
       // アニメーションループ関数
       function startAnimation() {
-        console.log('Starting animation...');
-        console.log('Data sample:', data[0]);
+        console.log('Starting grow animation...');
         // 円柱を伸びるアニメーション
         cylinderLayer = new deck.ColumnLayer({
           id: 'cylinders',
@@ -135,6 +128,7 @@
 
         // 伸びきった後3秒待機してリセット
         setTimeout(() => {
+          console.log('Pausing for 3 seconds...');
           cylinderLayer = new deck.ColumnLayer({
             id: 'cylinders',
             data: data,
@@ -145,20 +139,15 @@
             getPosition: d => [d.lon, d.lat],
             getElevation: d => d.count * 2000,
             getFillColor: [255, 0, 0, 200],
-            elevationScale: 0, // 高さを0に戻す
-            transitions: {
-              elevationScale: {
-                duration: 0 // 即座にリセット
-              }
-            }
+            elevationScale: 0 // 高さを0に戻す
           });
           deckOverlay.setProps({
             layers: [boundaryLayer, nagoyaLayer, cylinderLayer]
           });
 
-          // 次のアニメーション開始まで1秒待機（合計3秒の停止時間）
-          setTimeout(startAnimation, 1000); // 3秒 - 2秒（トランジション時間）
-        }, 2000 + 2000); // 伸びるアニメーション（2秒）+ 1秒のバッファ
+          // 次のアニメーション開始まで2秒待機（合計3秒の停止時間）
+          setTimeout(startAnimation, 2000);
+        }, 2000); // 2秒アニメーション後すぐ次の処理
       }
 
       // 初回アニメーション開始（1秒遅延）
